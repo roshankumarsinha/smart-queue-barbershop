@@ -107,7 +107,7 @@ Environment variables (WhatsApp API keys, DB connection string, etc.) go in a lo
 
 ## Branching Strategy
 
-- `main` — stable, protected. No direct pushes.
+- `master` — stable, protected. No direct pushes.
 - `feature/<description>` — new features, e.g. `feature/whatsapp-webhook`
 - `fix/<description>` — bug fixes
 - `chore/<description>` — tooling, config, docs
@@ -116,9 +116,9 @@ All changes go through a Pull Request with at least one review before merging in
 
 ## Contributing (for the two of us)
 
-1. Pull latest `main`:
+1. Pull latest `master`:
    ```bash
-   git checkout main
+   git checkout master
    git pull
    ```
 2. Create a feature branch:
