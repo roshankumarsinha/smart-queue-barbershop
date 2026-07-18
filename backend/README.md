@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Smart Queue — Backend API (NestJS)
 
 The API behind Smart Queue: staff authentication (RBAC), live queue management,
@@ -7,15 +6,15 @@ services required to run or develop.
 
 ## Stack (all free / open source)
 
-| Concern    | Choice                                                        |
-| ---------- | ------------------------------------------------------------- |
-| Framework  | NestJS 11 (TypeScript)                                        |
-| Database   | **SQLite** via Prisma (file-based, zero setup, no account)    |
-| ORM        | Prisma 6                                                      |
-| Auth       | JWT (`@nestjs/jwt` + Passport), `bcryptjs` password/PIN hashes|
-| Validation | class-validator / class-transformer                           |
-| Realtime   | Socket.io (`@nestjs/websockets`)                              |
-| Messaging  | WhatsApp Cloud API **seam** (runs as a free local stub)       |
+| Concern    | Choice                                                         |
+| ---------- | -------------------------------------------------------------- |
+| Framework  | NestJS 11 (TypeScript)                                         |
+| Database   | **SQLite** via Prisma (file-based, zero setup, no account)     |
+| ORM        | Prisma 6                                                       |
+| Auth       | JWT (`@nestjs/jwt` + Passport), `bcryptjs` password/PIN hashes |
+| Validation | class-validator / class-transformer                            |
+| Realtime   | Socket.io (`@nestjs/websockets`)                               |
+| Messaging  | WhatsApp Cloud API **seam** (runs as a free local stub)        |
 
 > The database is SQLite so it costs nothing and needs no server. The schema is
 > written to be portable — to move to a **free** hosted Postgres (Neon/Supabase)
@@ -36,11 +35,11 @@ If migrations already exist, just seed with `npm run db:seed`.
 
 ### Seeded demo accounts
 
-| Role         | Login                                   |
-| ------------ | --------------------------------------- |
-| SHOP_OWNER   | `owner@shop.com` / `secret123`          |
-| BARBER_STAFF | phone `9876543210` / PIN `1234`         |
-| SUPER_ADMIN  | `admin@smartqueue.app` / `admin123`     |
+| Role         | Login                               |
+| ------------ | ----------------------------------- |
+| SHOP_OWNER   | `owner@shop.com` / `secret123`      |
+| BARBER_STAFF | phone `9876543210` / PIN `1234`     |
+| SUPER_ADMIN  | `admin@smartqueue.app` / `admin123` |
 
 Demo shop id: `demo-shop`.
 
@@ -49,11 +48,13 @@ Demo shop id: `demo-shop`.
 Base path: `/api`. Body is JSON.
 
 ### Auth
+
 - `POST /auth/login` — `{ roleKey, email?, password?, phone?, pin? }` → `{ user, role, token }`
   (owners/admins use email+password; barbers use phone+PIN). Matches the frontend contract.
 - `GET /auth/me` — current user (Bearer token).
 
 ### Queue
+
 - `GET  /queue/status?shopId=` — live state: serving, waiting list, totals, ETA (public)
 - `POST /queue/join` — `{ shopId, service, phone?, name? }` (public; normally the WhatsApp webhook)
 - `POST /queue/leave` — `{ entryId }` (public)
@@ -67,23 +68,34 @@ Base path: `/api`. Body is JSON.
 `services`: `HAIRCUT` | `BEARD` | `HAIRCUT_BEARD`.
 
 ### Shops (SaaS/admin)
+
 - `GET /shops`, `GET /shops/:id` (any authenticated user)
 - `POST /shops` (SUPER_ADMIN only)
 
 ### Realtime (Socket.io)
+
 Connect to the server, then:
+
 ```js
-socket.emit('queue:subscribe', { shopId });
-socket.on('queue:update', (state) => { /* fresh queue state on every change */ });
+socket.emit("queue:subscribe", { shopId });
+socket.on("queue:update", (state) => {
+  /* fresh queue state on every change */
+});
 ```
 
-## Wiring the frontend to this API
+## Frontend integration
 
-The frontend currently mocks login. To use this backend, in `frontend/`:
-1. set `VITE_API_BASE_URL=http://localhost:3000/api` in `frontend/.env.local`
-2. replace `mockLogin` in `src/api/auth.js` with
-   `api.post('/auth/login', { body: { roleKey, ...credentials } })`
-   (the return shape already matches — the Redux dispatch + routing stay the same).
+The frontend is **already wired** to this API (`frontend/src/api/*`): login, the
+live queue board, and staff actions (next / walk-in / skip / no-show) all call
+these endpoints, and CORS in `main.ts` allows the Vite dev origin plus the
+Capacitor app origins. The dev base URL is `frontend/.env.local`
+(`VITE_API_BASE_URL=http://localhost:3000/api`).
+
+> **Mobile app note:** the packaged Android/iOS app cannot reach `localhost`
+> (on a phone that's the phone itself). For store builds this API must be
+> **deployed to a public HTTPS URL**, set in `frontend/.env.production`. Free
+> hosting tiers that work: Render / Railway / Fly.io for the API, plus
+> Neon / Supabase for Postgres.
 
 ## Structure
 
@@ -101,12 +113,9 @@ src/
 ```
 
 ## Notes / seams for later (grep `TODO`)
+
 - `src/notifications/notifications.service.ts` — implement the real Meta WhatsApp
   Cloud API call (free tier). Runs as a logging stub until `WHATSAPP_TOKEN` +
   `WHATSAPP_PHONE_NUMBER_ID` are set in `.env`.
 - Add a WhatsApp **webhook** controller to translate inbound messages into
   `queue.join` / `queue.leave` calls.
-=======
-# This directory is for Backend code.
-## Steps to run locally.
->>>>>>> d3f044124189b6dad7b01d6c7e5351d0f994b718
