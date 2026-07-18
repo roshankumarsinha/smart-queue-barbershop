@@ -1,0 +1,5 @@
+{
+  "appId": "com.smartqueue.app",
+  "appName": "Smart Queue",
+  "webDir": "dist"
+}
