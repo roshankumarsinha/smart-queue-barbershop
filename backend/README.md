@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Smart Queue — Backend API (NestJS)
 
 The API behind Smart Queue: staff authentication (RBAC), live queue management,
@@ -105,3 +106,7 @@ src/
   `WHATSAPP_PHONE_NUMBER_ID` are set in `.env`.
 - Add a WhatsApp **webhook** controller to translate inbound messages into
   `queue.join` / `queue.leave` calls.
+=======
+# This directory is for Backend code.
+## Steps to run locally.
+>>>>>>> d3f044124189b6dad7b01d6c7e5351d0f994b718
