@@ -1,0 +1,79 @@
+// Smart Queue — Prisma schema
+//
+// Provider is SQLite (free, file-based, zero setup). To move to a free hosted
+// Postgres (Neon / Supabase) later: change provider to "postgresql", point
+// DATABASE_URL at the connection string, then `npm run prisma:migrate`.
+//
+// Enum-like columns (role, status, service) are stored as String with the
+// allowed values documented inline — this keeps the schema portable across
+// SQLite and Postgres. See src/common/constants.ts for the source of truth.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Shop {
+  id             String   @id @default(cuid())
+  name           String
+  whatsappNumber String?
+  avgServiceTime Int      @default(20) // minutes, used for wait estimates
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  users        User[]
+  queueEntries QueueEntry[]
+}
+
+model User {
+  id   String @id @default(cuid())
+  role String // SHOP_OWNER | BARBER_STAFF | SUPER_ADMIN | CUSTOMER
+  name String
+
+  // Owners & admins sign in with email + password.
+  email        String? @unique
+  passwordHash String?
+
+  // Barbers sign in with phone + PIN.
+  phone   String? @unique
+  pinHash String?
+
+  shopId String?
+  shop   Shop?   @relation(fields: [shopId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model QueueEntry {
+  id           String  @id @default(cuid())
+  shopId       String
+  shop         Shop    @relation(fields: [shopId], references: [id])
+  token        Int // human-facing token number, unique per shop
+  customerName String?
+  phone        String?
+  service      String // HAIRCUT | BEARD | HAIRCUT_BEARD
+  status       String  @default("WAITING") // WAITING | IN_SERVICE | DONE | SKIPPED | NO_SHOW | LEFT
+  position     Int // ordering within the waiting list
+
+  joinedAt  DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  notifications Notification[]
+
+  @@index([shopId, status])
+}
+
+model Notification {
+  id           String     @id @default(cuid())
+  queueEntryId String
+  queueEntry   QueueEntry @relation(fields: [queueEntryId], references: [id])
+  type         String // e.g. JOINED | ALMOST_YOUR_TURN | YOUR_TURN | REMOVED
+  channel      String     @default("whatsapp")
+  sentAt       DateTime   @default(now())
+}

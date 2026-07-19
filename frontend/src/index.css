@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-charcoal text-ivory font-sans antialiased;
+    /* Respect Android notch / status bar when wrapped by Capacitor. */
+    padding: env(safe-area-inset-top) env(safe-area-inset-right)
+      env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+}
+
+@layer components {
+  /*
+   * Barber-pole stripe: a 45deg 3-colour diagonal pattern tiled at 42px.
+   * Pair with `animate-barber-pole`, which scrolls background-position by
+   * exactly one 42px tile for a seamless, continuous loop.
+   */
+  .barber-stripe {
+    background-image: linear-gradient(
+      45deg,
+      theme(colors.brass) 25%,
+      theme(colors.oxblood) 25%,
+      theme(colors.oxblood) 50%,
+      theme(colors.ivory) 50%,
+      theme(colors.ivory) 75%,
+      theme(colors.brass) 75%
+    );
+    background-size: 42px 42px;
+  }
+}
