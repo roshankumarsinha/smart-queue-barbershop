@@ -1,0 +1,66 @@
+spring:
+  application:
+    name: smart-queue-api
+
+  autoconfigure:
+    # Authentication is bearer-token only (JwtAuthenticationFilter). Without this,
+    # Boot creates a default in-memory user and logs a random password on every
+    # start — unused, but easy to mistake for a real credential.
+    exclude:
+      - org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration
+
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/smartqueue}
+    username: ${DATABASE_USER:smartqueue}
+    password: ${DATABASE_PASSWORD:smartqueue}
+
+  jpa:
+    # Flyway owns the schema; Hibernate only validates that it matches the entities.
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  threads:
+    virtual:
+      enabled: true # Java 21+ virtual threads: one per request, no pool tuning
+
+server:
+  port: ${PORT:3000}
+
+# Swagger UI and the raw spec sit at the root, outside the /api prefix, because
+# springdoc's own controllers are not in the package WebConfig prefixes.
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+    display-request-duration: true
+
+smartqueue:
+  jwt:
+    # Override in every real environment. HS256 needs at least 32 bytes.
+    secret: ${JWT_SECRET:dev-secret-change-me-at-least-32-bytes-long}
+    expiration: ${JWT_EXPIRES_IN:7d}
+  cors:
+    allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:4173,capacitor://localhost,https://localhost,http://localhost}
+  whatsapp:
+    # Leave blank to keep notifications in free "log only" stub mode.
+    token: ${WHATSAPP_TOKEN:}
+    phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID:}
+  seed:
+    # Demo shop + logins so the frontend works immediately. Turn OFF in production.
+    demo-data: ${SEED_DEMO_DATA:true}
+
+logging:
+  level:
+    com.smartqueue: INFO
