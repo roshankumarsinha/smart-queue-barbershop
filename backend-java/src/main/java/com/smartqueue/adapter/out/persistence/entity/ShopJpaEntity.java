@@ -22,6 +22,9 @@ public class ShopJpaEntity {
     @Column(name = "whatsapp_number")
     private String whatsappNumber;
 
+    @Column
+    private String address;
+
     @Column(name = "avg_service_time", nullable = false)
     private int avgServiceTime;
 
@@ -44,6 +47,7 @@ public class ShopJpaEntity {
             String id,
             String name,
             String whatsappNumber,
+            String address,
             int avgServiceTime,
             boolean active,
             Instant createdAt,
@@ -51,6 +55,7 @@ public class ShopJpaEntity {
         this.id = id;
         this.name = name;
         this.whatsappNumber = whatsappNumber;
+        this.address = address;
         this.avgServiceTime = avgServiceTime;
         this.active = active;
         this.createdAt = createdAt;
@@ -67,6 +72,10 @@ public class ShopJpaEntity {
 
     public String getWhatsappNumber() {
         return whatsappNumber;
+    }
+
+    public String getAddress() {
+        return address;
     }
 
     public int getAvgServiceTime() {

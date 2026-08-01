@@ -9,11 +9,19 @@ CREATE TABLE shops (
     id               VARCHAR(64) PRIMARY KEY,
     name             VARCHAR(255) NOT NULL,
     whatsapp_number  VARCHAR(32),
+    address          VARCHAR(500),
     avg_service_time INTEGER      NOT NULL DEFAULT 20, -- minutes, drives wait estimates
     active           BOOLEAN      NOT NULL DEFAULT TRUE,
     created_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     updated_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
+
+-- A WhatsApp number is how customers reach a shop, so two shops must never share one.
+-- Partial rather than a plain UNIQUE constraint: a shop can be onboarded before its
+-- number is known, so many NULLs must stay fine.
+CREATE UNIQUE INDEX uq_shops_whatsapp_number
+    ON shops (whatsapp_number)
+    WHERE whatsapp_number IS NOT NULL;
 
 CREATE TABLE users (
     id            VARCHAR(64) PRIMARY KEY,

@@ -27,7 +27,7 @@ public class AuthController {
         this.login = login;
     }
 
-    /** POST /api/auth/login -> { user, role, token } */
+    /** POST /auth/login -> { user, role, token } */
     @Operation(
             summary = "Sign in",
             description = """
@@ -40,7 +40,7 @@ public class AuthController {
                 request.role(), request.email(), request.password(), request.phone(), request.pin())));
     }
 
-    /** GET /api/auth/me -> the current token's user, for session restore on reload. */
+    /** GET /auth/me -> the current token's user, for session restore on reload. */
     @Operation(summary = "The current token's user")
     @SecurityRequirement(name = "bearerAuth")
     @GetMapping("/me")

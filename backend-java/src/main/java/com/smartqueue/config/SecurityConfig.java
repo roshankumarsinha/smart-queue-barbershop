@@ -44,9 +44,9 @@ class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         // Customer-facing: joining and checking the queue needs no account.
-                        .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/queue/status").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/queue/join", "/api/queue/leave").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/queue/status/*").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/queue/join", "/queue/leave").permitAll()
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
                         // API docs. Lock these down (or exclude the dependency) in production.

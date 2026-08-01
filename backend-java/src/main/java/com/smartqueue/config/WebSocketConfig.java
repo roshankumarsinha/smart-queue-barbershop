@@ -12,7 +12,7 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
  *
  * Frontend usage:
  *   const client = new Client({ brokerURL: 'ws://localhost:3000/ws' });
- *   client.subscribe(`/topic/queue/${shopId}`, (msg) => setState(JSON.parse(msg.body)));
+ *   client.subscribe(`/status/queue/${shopId}`, (msg) => setState(JSON.parse(msg.body)));
  *
  * Note this replaces the NestJS Socket.io gateway; the transports are not wire
  * compatible, so the frontend swaps socket.io-client for @stomp/stompjs.
@@ -37,7 +37,7 @@ class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-        registry.enableSimpleBroker("/topic");
+        registry.enableSimpleBroker("/status");
         registry.setApplicationDestinationPrefixes("/app");
     }
 }

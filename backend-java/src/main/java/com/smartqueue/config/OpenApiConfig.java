@@ -11,10 +11,9 @@ import org.springframework.context.annotation.Configuration;
  * The spec is generated from the controllers and DTOs; this only supplies what
  * annotations can't infer.
  *
- * Note there is deliberately no server URL override: springdoc already resolves the
- * /api prefix that {@link WebConfig} adds via PathMatchConfigurer, so the generated
- * paths are absolute. Adding a "/api" server on top of that made "Try it out" call
- * /api/api/... and 401.
+ * Note there is deliberately no server URL override: routes are served at the paths
+ * their controllers declare, so springdoc's generated paths already match what
+ * "Try it out" should call. Adding a server prefix here would double it up and 401.
  */
 @Configuration
 class OpenApiConfig {
@@ -30,7 +29,7 @@ class OpenApiConfig {
                         .description("""
                                 Queue management for barbershops: customers join from WhatsApp,
                                 staff advance the queue from a dashboard, and every change is
-                                broadcast over STOMP at /topic/queue/{shopId}.
+                                broadcast over STOMP at /status/queue/{shopId}.
 
                                 Most routes need a bearer token — call POST /auth/login first
                                 (demo: owner@shop.com / secret123), then Authorize above.

@@ -35,7 +35,7 @@ spring:
 server:
   port: ${PORT:3000}
 
-# Swagger UI and the raw spec sit at the root, outside the /api prefix, because
+# Swagger UI and the raw spec sit at the root, alongside the REST routes, because
 # springdoc's own controllers are not in the package WebConfig prefixes.
 springdoc:
   api-docs:

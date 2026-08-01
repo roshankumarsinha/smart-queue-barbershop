@@ -7,13 +7,13 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
 /**
- * Broadcasts to /topic/queue/{shopId}. Reuses the REST response DTO on purpose so a
- * pushed update is byte-for-byte the same JSON as a polled GET /api/queue/status.
+ * Broadcasts to /status/queue/{shopId}. Reuses the REST response DTO on purpose so a
+ * pushed update is byte-for-byte the same JSON as a polled GET /queue/board.
  */
 @Component
 class StompQueueEventPublisher implements QueueEventPublisher {
 
-    private static final String TOPIC_PREFIX = "/topic/queue/";
+    private static final String TOPIC_PREFIX = "/status/queue/";
 
     private final SimpMessagingTemplate messaging;
 
