@@ -1,0 +1,45 @@
+package com.smartqueue.application.service;
+
+import com.smartqueue.application.port.in.LoginUseCase;
+import com.smartqueue.application.port.in.command.LoginCommand;
+import com.smartqueue.application.port.in.result.AuthenticatedSession;
+import com.smartqueue.application.port.out.AccessTokenIssuer;
+import com.smartqueue.application.port.out.PasswordHasher;
+import com.smartqueue.application.port.out.UserRepository;
+import com.smartqueue.domain.AuthMethod;
+import com.smartqueue.domain.exception.InvalidCredentialsException;
+import com.smartqueue.domain.model.User;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@Transactional(readOnly = true)
+public class AuthService implements LoginUseCase {
+
+    private final UserRepository users;
+    private final PasswordHasher hasher;
+    private final AccessTokenIssuer tokens;
+
+    public AuthService(UserRepository users, PasswordHasher hasher, AccessTokenIssuer tokens) {
+        this.users = users;
+        this.hasher = hasher;
+        this.tokens = tokens;
+    }
+
+    @Override
+    public AuthenticatedSession login(LoginCommand command) {
+        AuthMethod method = command.role().authMethod().orElseThrow(InvalidCredentialsException::new);
+
+        User user = (method == AuthMethod.EMAIL
+                        ? users.findByEmailAndRole(command.email(), command.role())
+                        : users.findByPhoneAndRole(command.phone(), command.role()))
+                .orElseThrow(InvalidCredentialsException::new);
+
+        String secret = method == AuthMethod.EMAIL ? command.password() : command.pin();
+        if (!hasher.matches(secret, user.credentialHash())) {
+            throw new InvalidCredentialsException();
+        }
+
+        return new AuthenticatedSession(user, tokens.issue(user));
+    }
+}
