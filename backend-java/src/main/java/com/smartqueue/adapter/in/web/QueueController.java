@@ -6,6 +6,7 @@ import com.smartqueue.adapter.in.web.dto.JoinQueueRequest;
 import com.smartqueue.adapter.in.web.dto.JoinQueueResponse;
 import com.smartqueue.adapter.in.web.dto.NotifyRequest;
 import com.smartqueue.adapter.in.web.dto.QueueEntryResponse;
+import com.smartqueue.adapter.in.web.dto.QueueEntryStatusResponse;
 import com.smartqueue.adapter.in.web.dto.QueueStatusResponse;
 import com.smartqueue.adapter.in.web.dto.ShopIdRequest;
 import com.smartqueue.application.port.in.AdvanceQueueUseCase;
@@ -24,6 +25,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -61,11 +63,18 @@ public class QueueController {
 
     // --- Public (customer / WhatsApp side) ------------------------------------
 
-    /** Read the live queue for a shop. */
-    @Operation(summary = "Read the live queue for a shop", description = "Public — no token required.")
-    @GetMapping("/status")
-    public QueueStatusResponse status(@RequestParam @NotBlank String shopId) {
-        return QueueStatusResponse.from(status.snapshot(shopId));
+    /**
+     * Customer checks their own status. This is the polling endpoint the WhatsApp
+     * flow / customer app calls after joining — the entryId returned by /queue/join
+     * is the only credential needed, the same way {@link #leave} works.
+     */
+    @Operation(
+            summary = "Check one customer's status",
+            description = "Public. Returns the entry's current status, how many are still ahead, "
+                    + "and the updated wait estimate.")
+    @GetMapping("/status/{entryId}")
+    public QueueEntryStatusResponse entryStatus(@PathVariable @NotBlank String entryId) {
+        return QueueEntryStatusResponse.from(status.entryStatus(entryId));
     }
 
     /**
@@ -89,6 +98,18 @@ public class QueueController {
     }
 
     // --- Staff-only (dashboard) -----------------------------------------------
+
+    /** The full live queue for a shop — everyone waiting, not just one entry. */
+    @Operation(
+            summary = "Read the live queue for a shop",
+            description = "Requires SHOP_OWNER or BARBER_STAFF. Same payload as the WebSocket broadcast at "
+                    + "/status/queue/{shopId}, so polling this and subscribing agree by construction.")
+    @SecurityRequirement(name = "bearerAuth")
+    @GetMapping("/board")
+    @PreAuthorize(STAFF)
+    public QueueStatusResponse board(@RequestParam @NotBlank String shopId) {
+        return QueueStatusResponse.from(status.snapshot(shopId));
+    }
 
     @Operation(summary = "Staff adds a walk-in customer")
     @SecurityRequirement(name = "bearerAuth")

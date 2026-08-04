@@ -7,9 +7,15 @@ import java.util.List;
 
 public interface ManageShopsUseCase {
 
+    /** Open shops only — a closed shop is still reachable via {@link #findById}. */
     List<Shop> findAll();
 
     Shop findById(String shopId);
 
     Shop create(CreateShopCommand command);
+
+    /** Hides the shop from {@link #findAll} and stops it accepting new queue joins. */
+    Shop close(String shopId);
+
+    Shop open(String shopId);
 }

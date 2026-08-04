@@ -32,7 +32,8 @@ class DemoDataSeeder {
         return args -> {
             Shop shop = shops.findById(DEMO_SHOP_ID)
                     .orElseGet(() -> shops.save(new Shop(
-                            DEMO_SHOP_ID, "Downtown Cuts", "+10000000000", 18, true, null, null)));
+                            DEMO_SHOP_ID, "Downtown Cuts", "+10000000000", "221B Baker Street",
+                            18, true, null, null)));
 
             ensureUser(users, Role.SHOP_OWNER, "owner@shop.com", null, () -> new User(
                     null, Role.SHOP_OWNER, "Shop Owner", "owner@shop.com",

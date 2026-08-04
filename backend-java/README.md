@@ -34,7 +34,7 @@ docker compose up -d          # postgres:17-alpine on localhost:5432
 ### 3. Start the API
 
 ```bash
-./mvnw spring-boot:run        # http://localhost:3000/api
+./mvnw spring-boot:run        # http://localhost:3000
 ```
 
 Wait for `Started SmartQueueApplication`. On first boot Flyway creates the schema and the
@@ -51,7 +51,12 @@ Set `SEED_DEMO_DATA=false` anywhere that isn't a sandbox.
 ### 4. Check it works
 
 ```bash
-curl "http://localhost:3000/api/queue/status?shopId=demo-shop"
+curl -s -X POST http://localhost:3000/queue/join \
+  -H 'Content-Type: application/json' \
+  -d '{"shopId":"demo-shop","service":"HAIRCUT","name":"Test"}'
+# -> { "entry": { "id": "...", ... }, "ahead": 3, "estimatedWaitMinutes": 60 }
+
+curl "http://localhost:3000/queue/status/<entry id from above>"
 ```
 
 Then open **<http://localhost:3000/swagger-ui.html>**. To call a protected route there:
@@ -159,48 +164,52 @@ Interactive docs are generated from the controllers and DTOs — once the app is
 To call a protected route from the UI: run `POST /auth/login` (demo: `SHOP_OWNER` /
 `owner@shop.com` / `secret123`), copy the `token`, click **Authorize**, paste it.
 
-Both doc URLs sit at the root rather than under `/api`, and both are `permitAll` in
-`SecurityConfig` — restrict or exclude them before shipping to production.
+Both doc URLs are `permitAll` in `SecurityConfig` — restrict or exclude them before
+shipping to production.
 
-The tables below are the same contract, for when the app isn't running. All routes are
-under `/api`, unchanged from the NestJS backend unless noted.
+The tables below are the same contract, for when the app isn't running. Routes are
+served at the root: this backend has no `/api` prefix, unlike the NestJS one.
 
 ### Public
 
 | Method | Path | Body / query |
 | --- | --- | --- |
-| `POST` | `/api/auth/login` | `{ roleKey, email?, password?, phone?, pin? }` → `{ user, role, token }` |
-| `GET` | `/api/queue/status` | `?shopId=…` → full queue snapshot |
-| `POST` | `/api/queue/join` | `{ shopId, service, phone?, name? }` → `201` |
-| `POST` | `/api/queue/leave` | `{ entryId }` |
+| `POST` | `/auth/login` | `{ roleKey, email?, password?, phone?, pin? }` → `{ user, role, token }` |
+| `GET` | `/queue/status/{entryId}` | → one customer's status, place in line, and wait estimate |
+| `POST` | `/queue/join` | `{ shopId, service, phone?, name? }` → `201` |
+| `POST` | `/queue/leave` | `{ entryId }` |
 
 ### Authenticated
 
 | Method | Path | Roles |
 | --- | --- | --- |
-| `GET` | `/api/auth/me` | any |
-| `GET` | `/api/shops`, `/api/shops/{id}` | any |
-| `POST` | `/api/shops` | `SUPER_ADMIN` |
-| `POST` | `/api/queue/walkin` | `SHOP_OWNER`, `BARBER_STAFF` |
-| `POST` | `/api/queue/next` | `SHOP_OWNER`, `BARBER_STAFF` |
-| `POST` | `/api/queue/skip` | `SHOP_OWNER`, `BARBER_STAFF` |
-| `POST` | `/api/queue/no-show` | `SHOP_OWNER`, `BARBER_STAFF` |
-| `POST` | `/api/queue/notify` | `SHOP_OWNER`, `BARBER_STAFF` |
+| `GET` | `/auth/me` | any |
+| `GET` | `/shops` | any — open shops only, closed ones are hidden |
+| `GET` | `/shops/{id}` | any — works for closed shops too |
+| `POST` | `/shops` | `SUPER_ADMIN` |
+| `POST` | `/shops/{id}/close`, `/shops/{id}/open` | `SUPER_ADMIN`, or the `SHOP_OWNER` of that shop |
+| `GET` | `/queue/board` | `?shopId=…` → full queue snapshot — `SHOP_OWNER`, `BARBER_STAFF` |
+| `POST` | `/queue/walkin` | `SHOP_OWNER`, `BARBER_STAFF` |
+| `POST` | `/queue/next` | `SHOP_OWNER`, `BARBER_STAFF` |
+| `POST` | `/queue/skip` | `SHOP_OWNER`, `BARBER_STAFF` |
+| `POST` | `/queue/no-show` | `SHOP_OWNER`, `BARBER_STAFF` |
+| `POST` | `/queue/notify` | `SHOP_OWNER`, `BARBER_STAFF` |
 
 Send the token as `Authorization: Bearer <token>`.
 
 ### Realtime
 
 STOMP over WebSocket at `ws://localhost:3000/ws` (SockJS fallback at the same path).
-Subscribe to `/topic/queue/{shopId}`; every mutation publishes the same payload as
-`GET /api/queue/status`.
+Subscribe to `/status/queue/{shopId}`; every mutation publishes the same payload as
+`GET /queue/board`. The WebSocket topic itself is `permitAll` (see `SecurityConfig`) —
+consuming it doesn't require a token even though the equivalent poll now does.
 
 ```js
 import { Client } from '@stomp/stompjs';
 
 const client = new Client({ brokerURL: 'ws://localhost:3000/ws' });
 client.onConnect = () =>
-  client.subscribe(`/topic/queue/${shopId}`, (msg) => setQueue(JSON.parse(msg.body)));
+  client.subscribe(`/status/queue/${shopId}`, (msg) => setQueue(JSON.parse(msg.body)));
 client.activate();
 ```
 
@@ -210,10 +219,12 @@ client.activate();
 
 - **Realtime is STOMP, not Socket.io.** The two protocols are not wire compatible. A
   frontend talking to this backend swaps `socket.io-client` for `@stomp/stompjs`, and
-  `socket.emit('queue:subscribe')` becomes a subscription to `/topic/queue/{shopId}`.
+  `socket.emit('queue:subscribe')` becomes a subscription to `/status/queue/{shopId}`.
 - **Postgres instead of SQLite**, with Flyway owning the schema and Hibernate set to
   `validate` — it will refuse to start if the entities and the migration disagree.
-- **`POST /api/queue/notify` returns `204`** instead of `{ ok: true }`.
+- **No `/api` prefix.** NestJS sets a global `api` prefix; here routes are served at the
+  path their controller declares, so `/api/queue/next` becomes `/queue/next`.
+- **`POST /queue/notify` returns `204`** instead of `{ ok: true }`.
 - **Enums are enforced.** `service`, `status`, and notification `type` are real Java enums
   with matching SQL `CHECK` constraints, where the Prisma schema stored free strings.
 - **`position` is stored as `queue_position`** — `POSITION` is reserved in SQL.

@@ -6,7 +6,7 @@ import java.util.List;
 
 /**
  * The complete live state of one shop's queue. This is both the REST response for
- * GET /api/queue/status and the payload broadcast over WebSocket after every change,
+ * GET /queue/board and the payload broadcast over WebSocket after every change,
  * so the two can never drift.
  *
  * @param serving the customer in the chair, or null if nobody is being served

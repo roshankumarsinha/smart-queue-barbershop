@@ -23,7 +23,7 @@ public class ShopService implements ManageShopsUseCase {
 
     @Override
     public List<Shop> findAll() {
-        return shops.findAllByCreatedAt();
+        return shops.findAllByCreatedAt().stream().filter(Shop::active).toList();
     }
 
     @Override
@@ -38,10 +38,22 @@ public class ShopService implements ManageShopsUseCase {
     @Override
     @Transactional
     public Shop create(CreateShopCommand command) {
-        Shop shop = Shop.opening(command.name(), command.whatsappNumber(), command.avgServiceTime());
+        Shop shop = Shop.opening(command.name(), command.whatsappNumber(), command.address(), command.avgServiceTime());
         if (shop.whatsappNumber() != null && shops.existsByWhatsappNumber(shop.whatsappNumber())) {
             throw new ConflictException("A shop with this WhatsApp number already exists");
         }
         return shops.save(shop);
+    }
+
+    @Override
+    @Transactional
+    public Shop close(String shopId) {
+        return shops.save(findById(shopId).closed());
+    }
+
+    @Override
+    @Transactional
+    public Shop open(String shopId) {
+        return shops.save(findById(shopId).opened());
     }
 }
