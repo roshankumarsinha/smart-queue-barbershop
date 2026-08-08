@@ -17,20 +17,31 @@ import { getRole } from '../config/roles';
 import { staggerContainer, staggerItem } from '../lib/motion';
 import BarberPole from './BarberPole';
 
-// A stat card (used on Owner/Admin dashboards). MUI Card, staggered in.
+// A stat card (used on Owner/Admin dashboards). MUI Card, staggered in, with a
+// brass lift on hover.
 export function StatCard({ label, value, hint }) {
   return (
     <Card
       component={motion.div}
       variants={staggerItem}
+      whileHover={{ y: -3 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 26 }}
       elevation={6}
-      sx={{ borderRadius: 2 }}
+      sx={{
+        borderRadius: 2,
+        border: '1px solid rgba(200,155,60,0.18)',
+        transition: 'box-shadow 200ms',
+        '&:hover': { boxShadow: '0 14px 28px -12px rgba(0,0,0,0.6)' },
+      }}
     >
       <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-        <Typography sx={{ fontSize: 26, fontWeight: 700, color: 'primary.dark' }}>
+        <Typography
+          className="font-display"
+          sx={{ fontSize: 34, lineHeight: 1, color: 'primary.dark' }}
+        >
           {value}
         </Typography>
-        <Typography sx={{ fontSize: 14, fontWeight: 600, color: 'text.primary' }}>
+        <Typography sx={{ mt: 0.5, fontSize: 14, fontWeight: 600, color: 'text.primary' }}>
           {label}
         </Typography>
         {hint && (
@@ -59,6 +70,8 @@ export function PermissionList({ permissions }) {
           key={perm}
           component={motion.li}
           variants={staggerItem}
+          whileHover={{ x: 4 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 26 }}
           sx={{
             borderRadius: 2,
             px: 1.5,
@@ -66,6 +79,11 @@ export function PermissionList({ permissions }) {
             gap: 0,
             bgcolor: 'rgba(243,236,223,0.05)',
             border: '1px solid rgba(243,236,223,0.1)',
+            transition: 'background-color 200ms, border-color 200ms',
+            '&:hover': {
+              bgcolor: 'rgba(200,155,60,0.1)',
+              borderColor: 'rgba(200,155,60,0.35)',
+            },
           }}
         >
           <ListItemIcon sx={{ minWidth: 32 }}>
@@ -103,7 +121,7 @@ export default function DashboardShell({ roleKey, children }) {
           <Scissors size={20} aria-hidden="true" />
           <Typography
             className="font-display"
-            sx={{ fontSize: 18, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em', color: '#F3ECDF' }}
+            sx={{ fontSize: 26, lineHeight: 1, letterSpacing: '0.04em', color: '#F3ECDF' }}
           >
             Smart Queue
           </Typography>
@@ -123,10 +141,20 @@ export default function DashboardShell({ roleKey, children }) {
       </Box>
 
       <Box component="main" className="mx-auto w-full max-w-md flex-1" sx={{ px: 2.5, pb: 5 }}>
-        <Typography sx={{ fontSize: 14, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'text.secondary' }}>
+        <Typography
+          className="font-signage"
+          sx={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.25em', color: 'text.secondary' }}
+        >
           Logged in as
         </Typography>
-        <Typography className="font-display" sx={{ mb: 0.5, fontSize: 30, fontWeight: 700, color: 'primary.main' }}>
+        <Typography
+          component={motion.h1}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, ease: 'easeOut' }}
+          className="font-display"
+          sx={{ mb: 0.5, fontSize: 46, lineHeight: 1, letterSpacing: '0.02em', color: 'primary.main' }}
+        >
           {role.title}
         </Typography>
         {user?.identifier && (

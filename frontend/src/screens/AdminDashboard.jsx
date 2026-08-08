@@ -15,6 +15,8 @@ function ShopCard({ shop }) {
     <Box
       component={motion.div}
       variants={staggerItem}
+      whileHover={{ y: -3 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 26 }}
       sx={{
         display: 'flex',
         alignItems: 'center',
@@ -24,6 +26,12 @@ function ShopCard({ shop }) {
         bgcolor: 'background.paper',
         color: 'text.primary',
         boxShadow: 3,
+        border: '1px solid rgba(200,155,60,0.16)',
+        transition: 'box-shadow 200ms, border-color 200ms',
+        '&:hover': {
+          boxShadow: '0 16px 30px -14px rgba(0,0,0,0.65)',
+          borderColor: 'rgba(200,155,60,0.4)',
+        },
       }}
     >
       <Box sx={{ color: 'primary.dark' }}>
@@ -66,7 +74,8 @@ export default function AdminDashboard() {
     <PageTransition>
       <DashboardShell roleKey="SUPER_ADMIN">
         <Typography
-          sx={{ mb: 1.5, fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'text.secondary' }}
+          className="font-signage"
+          sx={{ mb: 1.5, fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.18em', color: 'text.secondary' }}
         >
           Shops on the platform · {shops.length}
         </Typography>
@@ -94,7 +103,8 @@ export default function AdminDashboard() {
         )}
 
         <Typography
-          sx={{ mb: 1.5, fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'text.secondary' }}
+          className="font-signage"
+          sx={{ mb: 1.5, fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.18em', color: 'text.secondary' }}
         >
           Your permissions
         </Typography>

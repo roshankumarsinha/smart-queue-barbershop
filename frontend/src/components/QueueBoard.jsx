@@ -22,18 +22,21 @@ import { useQueue } from '../hooks/useQueue';
 import { serviceLabel } from '../config/services';
 import { staggerContainer, staggerItem } from '../lib/motion';
 import WalkinDialog from './WalkinDialog';
+import ShimmerButton from './ShimmerButton';
+import AnimatedNumber from './AnimatedNumber';
 
 const springy = { type: 'spring', stiffness: 500, damping: 34 };
 
 function SectionLabel({ children }) {
   return (
     <Typography
+      className="font-signage"
       sx={{
         mb: 1.5,
         fontSize: 12,
-        fontWeight: 700,
+        fontWeight: 600,
         textTransform: 'uppercase',
-        letterSpacing: '0.08em',
+        letterSpacing: '0.18em',
         color: 'text.secondary',
       }}
     >
@@ -42,35 +45,38 @@ function SectionLabel({ children }) {
   );
 }
 
-// A stat tile whose number pops whenever it changes.
-function StatTile({ icon: Icon, label, value }) {
+// A stat tile with a brass lift on hover. `children` renders the value (either
+// an AnimatedNumber that rolls, or a popping string).
+function StatTile({ icon: Icon, label, children }) {
   return (
     <Box
+      component={motion.div}
+      whileHover={{ y: -4 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 26 }}
       sx={{
         borderRadius: 2,
         p: 1.75,
         bgcolor: 'background.paper',
         color: 'text.primary',
         boxShadow: 3,
+        border: '1px solid rgba(200,155,60,0.16)',
+        transition: 'box-shadow 200ms, border-color 200ms',
+        '&:hover': {
+          boxShadow: '0 16px 30px -14px rgba(0,0,0,0.65)',
+          borderColor: 'rgba(200,155,60,0.4)',
+        },
       }}
     >
       <Box sx={{ mb: 0.5, color: 'primary.dark' }}>
         <Icon size={18} aria-hidden="true" />
       </Box>
-      <AnimatePresence mode="popLayout" initial={false}>
-        <motion.div
-          key={String(value)}
-          initial={{ y: -10, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: 10, opacity: 0 }}
-          transition={{ duration: 0.22 }}
-        >
-          <Typography sx={{ fontSize: 24, fontWeight: 800, lineHeight: 1.1 }}>
-            {value}
-          </Typography>
-        </motion.div>
-      </AnimatePresence>
-      <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
+      <Box
+        className="font-display"
+        sx={{ fontSize: 32, lineHeight: 1, color: 'primary.dark' }}
+      >
+        {children}
+      </Box>
+      <Typography sx={{ mt: 0.25, fontSize: 12, color: 'text.secondary' }}>
         {label}
       </Typography>
     </Box>
@@ -101,6 +107,7 @@ function ServingCard({ entry }) {
       transition={{ duration: 0.3, ease: 'easeOut' }}
     >
       <Box
+        className="animate-serving-pulse"
         sx={{
           borderRadius: 3,
           p: 2.5,
@@ -112,19 +119,25 @@ function ServingCard({ entry }) {
         }}
       >
         <Typography
-          sx={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'text.secondary' }}
+          className="font-signage"
+          sx={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.22em', color: 'secondary.main' }}
         >
           Now serving
         </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 0.5 }}>
-          <Typography sx={{ fontSize: 34, fontWeight: 800, color: 'primary.dark' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 0.75 }}>
+          <Typography
+            className="font-display"
+            sx={{ fontSize: 56, lineHeight: 0.9, color: 'primary.dark' }}
+          >
             #{entry.token}
           </Typography>
           <Box>
-            <Typography sx={{ fontSize: 18, fontWeight: 700 }}>
+            <Typography sx={{ fontSize: 20, fontWeight: 700, lineHeight: 1.2 }}>
               {entry.customerName || 'Walk-in'}
             </Typography>
-            <ServiceChip service={entry.service} />
+            <Box sx={{ mt: 0.5 }}>
+              <ServiceChip service={entry.service} />
+            </Box>
           </Box>
         </Box>
       </Box>
@@ -169,6 +182,9 @@ function WaitingRow({ entry, index, canNoShow, onSkip, onNoShow, busy }) {
       style={{ listStyle: 'none' }}
     >
       <Box
+        component={motion.div}
+        whileHover={{ x: 4 }}
+        transition={{ type: 'spring', stiffness: 400, damping: 26 }}
         sx={{
           display: 'flex',
           alignItems: 'center',
@@ -179,12 +195,18 @@ function WaitingRow({ entry, index, canNoShow, onSkip, onNoShow, busy }) {
           mb: 1,
           bgcolor: 'rgba(243,236,223,0.06)',
           border: '1px solid rgba(243,236,223,0.1)',
+          transition: 'background-color 200ms, border-color 200ms',
+          '&:hover': {
+            bgcolor: 'rgba(200,155,60,0.1)',
+            borderColor: 'rgba(200,155,60,0.35)',
+          },
         }}
       >
         <Box
+          className="font-display"
           sx={{
-            width: 28,
-            height: 28,
+            width: 30,
+            height: 30,
             flexShrink: 0,
             display: 'flex',
             alignItems: 'center',
@@ -192,8 +214,8 @@ function WaitingRow({ entry, index, canNoShow, onSkip, onNoShow, busy }) {
             borderRadius: '50%',
             bgcolor: 'rgba(200,155,60,0.18)',
             color: 'primary.main',
-            fontSize: 12,
-            fontWeight: 700,
+            fontSize: 17,
+            lineHeight: 1,
           }}
         >
           {index + 1}
@@ -284,17 +306,42 @@ export default function QueueBoard({ canNoShow = false }) {
         }}
       >
         <motion.div variants={staggerItem}>
-          <StatTile icon={Users} label="In queue" value={totalWaiting} />
+          <StatTile icon={Users} label="In queue">
+            <AnimatedNumber value={totalWaiting} />
+          </StatTile>
         </motion.div>
         <motion.div variants={staggerItem}>
-          <StatTile icon={Clock} label="Est. wait" value={`${eta}m`} />
+          <StatTile icon={Clock} label="Est. wait">
+            <AnimatedNumber value={eta} />
+            <Box
+              component="span"
+              sx={{
+                ml: 0.5,
+                fontFamily: (t) => t.typography.fontFamily,
+                fontSize: 14,
+                fontWeight: 600,
+                color: 'text.secondary',
+              }}
+            >
+              min
+            </Box>
+          </StatTile>
         </motion.div>
         <motion.div variants={staggerItem}>
-          <StatTile
-            icon={Scissors}
-            label="Serving"
-            value={serving ? `#${serving.token}` : '—'}
-          />
+          <StatTile icon={Scissors} label="Serving">
+            <AnimatePresence mode="popLayout" initial={false}>
+              <motion.span
+                key={serving ? `#${serving.token}` : '—'}
+                initial={{ y: -10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: 10, opacity: 0 }}
+                transition={{ duration: 0.22 }}
+                style={{ display: 'inline-block' }}
+              >
+                {serving ? `#${serving.token}` : '—'}
+              </motion.span>
+            </AnimatePresence>
+          </StatTile>
         </motion.div>
       </motion.div>
 
@@ -309,41 +356,44 @@ export default function QueueBoard({ canNoShow = false }) {
 
       {/* Actions */}
       <Box sx={{ display: 'flex', gap: 1.5, my: 3 }}>
-        <Button
-          component={motion.button}
-          whileTap={{ scale: 0.97 }}
+        <ShimmerButton
           onClick={() => next.mutate()}
           disabled={next.isPending || nothingToServe}
-          variant="contained"
-          color="primary"
-          disableElevation
-          fullWidth
-          endIcon={
-            next.isPending ? (
-              <CircularProgress size={16} color="inherit" />
-            ) : (
-              <ArrowRight size={18} />
-            )
-          }
-          sx={{ py: 1.25, fontWeight: 700 }}
+          className="flex-1"
         >
-          Next customer
-        </Button>
+          {next.isPending ? (
+            <>
+              <CircularProgress size={16} sx={{ color: '#241A14' }} />
+              Working…
+            </>
+          ) : (
+            <>
+              Next customer
+              <ArrowRight size={18} />
+            </>
+          )}
+        </ShimmerButton>
         <Button
           component={motion.button}
-          whileTap={{ scale: 0.97 }}
+          whileTap={{ scale: 0.95 }}
+          whileHover={{ scale: 1.03 }}
+          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
           onClick={() => setWalkinOpen(true)}
           variant="outlined"
           disableElevation
           startIcon={<UserPlus size={18} />}
+          className="font-signage"
           sx={{
             py: 1.25,
             px: 2.5,
             whiteSpace: 'nowrap',
-            fontWeight: 700,
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            letterSpacing: '0.06em',
             color: 'primary.main',
             borderColor: 'primary.main',
-            '&:hover': { borderColor: 'primary.dark', bgcolor: 'rgba(200,155,60,0.08)' },
+            borderWidth: 2,
+            '&:hover': { borderWidth: 2, borderColor: 'primary.dark', bgcolor: 'rgba(200,155,60,0.1)' },
           }}
         >
           Walk-in
