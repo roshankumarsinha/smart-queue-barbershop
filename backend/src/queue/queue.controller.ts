@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   HttpCode,
+  Param,
   Post,
   Query,
   UseGuards,
@@ -25,10 +26,11 @@ export class QueueController {
 
   // --- Public (customer / WhatsApp side) ------------------------------------
 
-  // Read the live queue for a shop.
-  @Get('status')
-  status(@Query('shopId') shopId: string) {
-    return this.queue.getStatus(shopId);
+  // Customer checks their own status — place in line and updated wait estimate.
+  // The entryId returned by /queue/join is the only credential needed.
+  @Get('status/:entryId')
+  entryStatus(@Param('entryId') entryId: string) {
+    return this.queue.entryStatus(entryId);
   }
 
   // Customer joins the queue (in production this is triggered by the WhatsApp
@@ -47,6 +49,15 @@ export class QueueController {
   }
 
   // --- Staff-only (dashboard) -----------------------------------------------
+
+  // The full live queue for a shop — everyone waiting, not just one entry. Same
+  // payload as the WebSocket broadcast, so polling and subscribing agree.
+  @Get('board')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.SHOP_OWNER, Role.BARBER_STAFF)
+  board(@Query('shopId') shopId: string) {
+    return this.queue.getStatus(shopId);
+  }
 
   @Post('walkin')
   @HttpCode(201)

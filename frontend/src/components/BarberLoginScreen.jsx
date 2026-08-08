@@ -8,17 +8,17 @@ import {
   Tab,
   TextField,
   InputAdornment,
-  Button,
   CircularProgress,
   Typography,
   Box,
 } from "@mui/material";
-import { Mail, Lock, Phone, KeyRound, Scissors } from "lucide-react";
+import { Mail, Lock, Phone, KeyRound, Scissors, ArrowRight } from "lucide-react";
 import { ROLES, LOGIN_ROLE_ORDER, getRole } from "../config/roles";
 import { loginStart, loginSuccess, loginFailure } from "../store/authSlice";
 import { login } from "../api/auth";
 import { schemaForAuthMethod, validateWithSchema } from "../lib/authSchemas";
 import BarberPole from "./BarberPole";
+import ShimmerButton from "./ShimmerButton";
 
 // --- Field definitions per auth method ---------------------------------------
 const FIELDS = {
@@ -270,16 +270,19 @@ export default function BarberLoginScreen() {
           button is clickable immediately. */}
       <Paper
         component={motion.div}
-        elevation={10}
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, ease: "easeOut" }}
+        elevation={0}
+        initial={{ opacity: 0, y: 24, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ type: "spring", stiffness: 220, damping: 24 }}
         sx={{
           position: "relative",
           width: "100%",
           maxWidth: 384,
           overflow: "hidden",
           borderRadius: 3,
+          border: "1px solid rgba(200,155,60,0.28)",
+          boxShadow:
+            "0 30px 60px -18px rgba(0,0,0,0.7), 0 0 0 1px rgba(0,0,0,0.4)",
         }}
       >
         {/* Ticket top edge: the animated barber-pole stripe */}
@@ -289,8 +292,12 @@ export default function BarberLoginScreen() {
           {/* Wordmark */}
           <Box sx={{ mb: 3, textAlign: "center" }}>
             <Box
+              component={motion.div}
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1, duration: 0.4 }}
               sx={{
-                mb: 0.5,
+                mb: 0.25,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -298,14 +305,24 @@ export default function BarberLoginScreen() {
                 color: "primary.dark",
               }}
             >
-              <Scissors size={20} aria-hidden="true" />
+              <motion.span
+                aria-hidden="true"
+                animate={{ rotate: [0, -12, 0] }}
+                transition={{
+                  duration: 3.5,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+                style={{ display: "inline-flex" }}
+              >
+                <Scissors size={24} />
+              </motion.span>
               <Typography
-                variant="h5"
                 className="font-display"
                 sx={{
-                  fontWeight: 700,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.2em",
+                  fontSize: 44,
+                  lineHeight: 1,
+                  letterSpacing: "0.06em",
                   color: "text.primary",
                 }}
               >
@@ -313,12 +330,13 @@ export default function BarberLoginScreen() {
               </Typography>
             </Box>
             <Typography
+              className="font-signage"
               sx={{
                 fontSize: 12,
-                fontWeight: 500,
+                fontWeight: 600,
                 textTransform: "uppercase",
-                letterSpacing: "0.3em",
-                color: "text.secondary",
+                letterSpacing: "0.4em",
+                color: "secondary.main",
               }}
             >
               Staff Access
@@ -415,28 +433,23 @@ export default function BarberLoginScreen() {
             </Typography>
           )}
 
-          <Button
+          <ShimmerButton
             type="submit"
-            component={motion.button}
-            whileTap={{ scale: 0.97 }}
             disabled={submitting}
-            fullWidth
-            variant="contained"
-            color="primary"
-            disableElevation
-            startIcon={
-              submitting ? <CircularProgress size={16} color="inherit" /> : null
-            }
-            sx={{
-              py: 1.5,
-              fontWeight: 700,
-              textTransform: "uppercase",
-              letterSpacing: "0.05em",
-              "&:hover": { bgcolor: "primary.dark" },
-            }}
+            className="w-full text-[15px]"
           >
-            {submitting ? "Signing in…" : `Sign in as ${role.tabLabel}`}
-          </Button>
+            {submitting ? (
+              <>
+                <CircularProgress size={16} sx={{ color: "#241A14" }} />
+                Signing in…
+              </>
+            ) : (
+              <>
+                {`Sign in as ${role.tabLabel}`}
+                <ArrowRight size={18} />
+              </>
+            )}
+          </ShimmerButton>
 
           <Typography
             sx={{

@@ -81,8 +81,12 @@ export default function App() {
       <ThemeProvider theme={theme}>
         <Provider store={store}>
           <QueryClientProvider client={queryClient}>
+            {/* Fixed film-grain texture over the ambient backdrop. */}
+            <div className="grain-overlay" aria-hidden="true" />
             <BrowserRouter>
-              <AnimatedRoutes />
+              <div className="relative z-10 min-h-full">
+                <AnimatedRoutes />
+              </div>
             </BrowserRouter>
           </QueryClientProvider>
         </Provider>

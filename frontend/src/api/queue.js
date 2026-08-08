@@ -2,8 +2,9 @@ import { api } from './client';
 
 // Queue API — maps to backend/src/queue (see backend/README.md).
 
+// The staff dashboard reads the full live queue via the staff-only board endpoint.
 export const getQueueStatus = (shopId, token) =>
-  api.get(`/queue/status?shopId=${encodeURIComponent(shopId)}`, { token });
+  api.get(`/queue/board?shopId=${encodeURIComponent(shopId)}`, { token });
 
 // Staff actions (require a Bearer token with SHOP_OWNER / BARBER_STAFF).
 export const advanceQueue = (shopId, token) =>

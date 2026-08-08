@@ -10,6 +10,10 @@ export class CreateShopDto {
   whatsappNumber?: string;
 
   @IsOptional()
+  @IsString()
+  address?: string;
+
+  @IsOptional()
   @IsInt()
   @Min(1)
   avgServiceTime?: number;

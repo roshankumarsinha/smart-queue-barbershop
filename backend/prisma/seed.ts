@@ -12,6 +12,7 @@ async function main() {
       id: 'demo-shop',
       name: 'Downtown Cuts',
       whatsappNumber: '+10000000000',
+      address: '221B Baker Street',
       avgServiceTime: 18,
     },
   });

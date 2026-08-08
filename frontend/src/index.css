@@ -10,10 +10,39 @@
   }
 
   body {
-    @apply bg-charcoal text-ivory font-sans antialiased;
+    @apply text-ivory font-sans antialiased;
     /* Respect Android notch / status bar when wrapped by Capacitor. */
     padding: env(safe-area-inset-top) env(safe-area-inset-right)
       env(safe-area-inset-bottom) env(safe-area-inset-left);
+
+    /*
+     * Ambient barbershop backdrop. Layered so a centered phone-width column
+     * reads as a lit stage rather than a lonely strip on wide screens:
+     *   1. warm brass glow, top-center (the "spotlight")
+     *   2. a second, dimmer oxblood glow lower down for depth
+     *   3. base charcoal
+     * The glows sit on a fixed background so they don't scroll away.
+     */
+    background-color: #1b1512;
+    background-image:
+      radial-gradient(
+        60rem 40rem at 50% -8%,
+        rgba(200, 155, 60, 0.16),
+        transparent 60%
+      ),
+      radial-gradient(
+        50rem 40rem at 85% 110%,
+        rgba(123, 45, 45, 0.14),
+        transparent 60%
+      );
+    background-attachment: fixed;
+  }
+
+  /* Consistent, on-brand focus ring for keyboard users across the app. */
+  :focus-visible {
+    outline: 2px solid #e7c56b;
+    outline-offset: 2px;
+    border-radius: 4px;
   }
 }
 
@@ -34,5 +63,33 @@
       theme(colors.brass) 75%
     );
     background-size: 42px 42px;
+  }
+
+  /*
+   * Faint film-grain texture overlay — sits above the backdrop, below content,
+   * to keep the large flat charcoal areas from looking digital-clean. Very low
+   * opacity so it reads as paper/felt, not noise.
+   */
+  .grain-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.045;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+}
+
+/*
+ * Honour users who prefer reduced motion: kill the looping/idle decorative
+ * animations (barber pole, brass gleam, pulses). Framer Motion's own
+ * transitions are governed separately in JS via useReducedMotion.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .animate-barber-pole,
+  .animate-shimmer-slide,
+  .animate-spin-around,
+  .animate-serving-pulse {
+    animation: none !important;
   }
 }
