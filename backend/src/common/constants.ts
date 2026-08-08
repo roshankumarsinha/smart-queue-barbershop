@@ -27,6 +27,15 @@ export const QueueStatus = {
 } as const;
 export type QueueStatus = (typeof QueueStatus)[keyof typeof QueueStatus];
 
+// Whether a shop is currently taking customers. A CLOSED shop is hidden from
+// GET /shops and rejects new queue joins, but stays reachable by id so staff can
+// manage or reopen it.
+export const ShopStatus = {
+  OPEN: 'OPEN',
+  CLOSED: 'CLOSED',
+} as const;
+export type ShopStatus = (typeof ShopStatus)[keyof typeof ShopStatus];
+
 export const ServiceType = {
   HAIRCUT: 'HAIRCUT',
   BEARD: 'BEARD',
