@@ -303,9 +303,6 @@ export default function BarberLoginScreen() {
         ? { email: values.email, password: values.password }
         : { phone: values.phone, pin: values.pin };
 
-    console.log("Logging in with credentials:", credentials);
-    console.log("RoleKey:", activeRoleKey, "Role path:", role.path);
-
     login({ roleKey: activeRoleKey, credentials })
       .then((result) => {
         dispatch(loginSuccess(result));
