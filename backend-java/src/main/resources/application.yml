@@ -57,6 +57,13 @@ smartqueue:
     # Leave blank to keep notifications in free "log only" stub mode.
     token: ${WHATSAPP_TOKEN:}
     phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID:}
+    # Set in Meta's App Dashboard -> WhatsApp -> Configuration -> Webhook, alongside
+    # the /webhook/whatsapp callback URL. Any string works as long as both sides agree.
+    verify-token: ${WHATSAPP_VERIFY_TOKEN:}
+    # App Dashboard -> App Settings -> Basic -> App Secret. Leave blank in local dev;
+    # without it, inbound webhooks are trusted without checking they came from Meta.
+    app-secret: ${WHATSAPP_APP_SECRET:}
+    api-base-url: ${WHATSAPP_API_BASE_URL:https://graph.facebook.com/v25.0}
   seed:
     # Demo shop + logins so the frontend works immediately. Turn OFF in production.
     demo-data: ${SEED_DEMO_DATA:true}

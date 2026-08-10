@@ -48,6 +48,9 @@ class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/queue/status/*").permitAll()
                         .requestMatchers(HttpMethod.POST, "/queue/join", "/queue/leave").permitAll()
                         .requestMatchers("/ws/**").permitAll()
+                        // Meta calls this directly — secured by the verify-token handshake
+                        // (GET) and the payload signature (POST), not a bearer token.
+                        .requestMatchers("/webhook/whatsapp").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
                         // API docs. Lock these down (or exclude the dependency) in production.
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")

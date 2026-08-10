@@ -38,6 +38,12 @@ class QueueEntryPersistenceAdapter implements QueueEntryRepository {
     }
 
     @Override
+    public Optional<QueueEntry> findActiveByPhone(String phone) {
+        return entries.findFirstByPhoneAndStatusInOrderByJoinedAtDesc(phone, QueueStatus.ACTIVE)
+                .map(PersistenceMapper::toDomain);
+    }
+
+    @Override
     public int countActiveAhead(String shopId, int position) {
         return entries.countByShopIdAndStatusInAndPositionLessThan(shopId, QueueStatus.ACTIVE, position);
     }
