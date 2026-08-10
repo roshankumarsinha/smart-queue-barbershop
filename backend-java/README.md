@@ -7,6 +7,10 @@ Same REST contract, same JWT payload, same roles — so the existing frontend ca
 at either backend by changing `VITE_API_BASE_URL`. The one incompatible piece is realtime
 (see [Differences](#differences-from-the-nestjs-backend)).
 
+This file is the API reference (routes, running it, config). For the codebase layout,
+the NestJS→Java mapping, what's been built, and how to enable the WhatsApp bot, see
+**[ARCHITECTURE.md](ARCHITECTURE.md)**.
+
 ---
 
 ## Run it
@@ -62,12 +66,42 @@ curl "http://localhost:3000/queue/status/<entry id from above>"
 Then open **<http://localhost:3000/swagger-ui.html>**. To call a protected route there:
 run `POST /auth/login`, copy the `token`, click **Authorize** (top right), paste it.
 
+### 5. (Optional) Enable the WhatsApp bot
+
+Without this the app still runs fine — outbound WhatsApp messages just log as
+`[stub] WhatsApp -> ...` instead of sending. To make them real and let a customer
+message the bot for real, see **[ARCHITECTURE.md § Enabling the WhatsApp bot for
+real](ARCHITECTURE.md#enabling-the-whatsapp-bot-for-real)** for the full one-time
+Meta setup (credentials, webhook registration, the WABA-subscription step that's easy
+to miss). The short version, once that's done once:
+
+```bash
+cd backend-java
+set -a; source .env; set +a
+./mvnw spring-boot:run &                      # the API
+
+cloudflared tunnel --url http://localhost:3000   # prints a fresh https://*.trycloudflare.com URL
+```
+
+Every time you restart `cloudflared`, its URL changes — re-paste the new one into
+Meta App Dashboard → WhatsApp → Configuration → Webhook → Callback URL, using the
+same `WHATSAPP_VERIFY_TOKEN` from `.env`. Verify it's live before messaging the bot:
+
+```bash
+curl "https://<your-tunnel>/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=<your WHATSAPP_VERIFY_TOKEN>&hub.challenge=test123"
+# -> should echo back "test123"
+```
+
+Then message the WhatsApp Business number with **Hi** from a number added as a test
+recipient (App Dashboard → WhatsApp → API Setup).
+
 ### Stopping and resetting
 
 ```bash
-pkill -f spring-boot:run   # stop the API
-docker compose down        # stop Postgres, keep the data
-docker compose down -v     # stop Postgres and wipe the volume
+pkill -f spring-boot:run          # stop the API
+pkill -f "cloudflared tunnel"     # stop the tunnel, if you started one
+docker compose down               # stop Postgres, keep the data
+docker compose down -v            # stop Postgres and wipe the volume
 ```
 
 After `down -v` the next boot re-runs Flyway and re-seeds from scratch.
@@ -80,74 +114,6 @@ After `down -v` the next boot re-runs Flyway and re-seeds from scratch.
 | `Connection to localhost:5432 refused` | Postgres not up — `docker compose ps` |
 | `Web server failed to start. Port 3000 was already in use` | an older run is alive — `pkill -f spring-boot:run` |
 | `Schema-validation: missing table` | volume has an older schema — `docker compose down -v` |
-
----
-
-## Architecture
-
-The dependency rule points inward: **adapters → application → domain**. The domain knows
-nothing about Spring, JPA, or HTTP, and the application layer talks to the outside world
-only through interfaces it declares itself.
-
-```
-src/main/java/com/smartqueue/
-├── domain/                      # No framework imports at all
-│   ├── Role, QueueStatus, ServiceType, NotificationType, AuthMethod
-│   ├── model/                   # Shop, User, QueueEntry, Notification (immutable records)
-│   └── exception/               # NotFoundException, InvalidCredentialsException
-│
-├── application/
-│   ├── port/in/                 # What the app can do — one interface per use case
-│   │   ├── GetQueueStatusUseCase, JoinQueueUseCase, AdvanceQueueUseCase,
-│   │   │   UpdateQueueEntryUseCase, NotifyCustomerUseCase, LoginUseCase,
-│   │   │   ManageShopsUseCase
-│   │   ├── command/             # JoinQueueCommand, LoginCommand, …
-│   │   └── result/              # QueueSnapshot, JoinQueueResult, …
-│   ├── port/out/                # What the app needs — implemented by adapters
-│   │   ├── ShopRepository, UserRepository, QueueEntryRepository, NotificationRepository
-│   │   └── NotificationSender, QueueEventPublisher, PasswordHasher, AccessTokenIssuer
-│   └── service/                 # QueueService, AuthService, ShopService,
-│                                #   CustomerNotificationService
-└── adapter/
-    ├── in/web/                  # REST controllers, request/response DTOs, error handler
-    │   └── security/            # JwtAuthenticationFilter, AuthenticatedUser principal
-    └── out/
-        ├── persistence/         # JPA entities, Spring Data repos, port adapters, mapper
-        ├── security/            # JwtTokenService (jjwt), BCryptPasswordHasher
-        ├── websocket/           # StompQueueEventPublisher
-        └── notification/        # WhatsAppNotificationSender (stub by default)
-
-config/                          # SecurityConfig, WebConfig, WebSocketConfig,
-                                 #   SmartQueueProperties, DemoDataSeeder
-```
-
-**Why this shape.** `QueueService` holds the rules that actually matter — token
-allocation, promotion order, who gets warned when — and it depends on nothing but ports.
-Swapping Postgres for something else, or the WhatsApp stub for the real Cloud API, is a
-change confined to one class in `adapter/out/`.
-
-Two deliberate concessions to pragmatism: application services carry `@Service` and
-`@Transactional`, and `StompQueueEventPublisher` reuses the web layer's
-`QueueStatusResponse` so a pushed update is byte-identical to a polled one.
-
-### Mapping from the NestJS backend
-
-| NestJS | Here |
-| --- | --- |
-| `QueueService` | `application/service/QueueService` |
-| `QueueController` | `adapter/in/web/QueueController` |
-| `PrismaService` + Prisma models | `adapter/out/persistence/*` behind `*Repository` ports |
-| `QueueGateway` (Socket.io) | `adapter/out/websocket/StompQueueEventPublisher` |
-| `NotificationsService` | `CustomerNotificationService` + `WhatsAppNotificationSender` |
-| `JwtStrategy` / `JwtAuthGuard` | `adapter/in/web/security/JwtAuthenticationFilter` |
-| `RolesGuard` + `@Roles()` | `@PreAuthorize` + `@EnableMethodSecurity` |
-| `@CurrentUser()` decorator | `@AuthenticationPrincipal AuthenticatedUser` |
-| `class-validator` DTOs | Jakarta Validation on request records |
-| `ValidationPipe` errors | `ApiExceptionHandler` (same `{ statusCode, message, error }` shape) |
-| `prisma/schema.prisma` | `db/migration/V1__init.sql` (Flyway) |
-| `prisma/seed.ts` | `config/DemoDataSeeder` |
-| `.env` | `application.yml` + `SmartQueueProperties` |
-| _(no equivalent)_ | `config/OpenApiConfig` → Swagger UI |
 
 ---
 
@@ -178,6 +144,7 @@ served at the root: this backend has no `/api` prefix, unlike the NestJS one.
 | `GET` | `/queue/status/{entryId}` | → one customer's status, place in line, and wait estimate |
 | `POST` | `/queue/join` | `{ shopId, service, phone?, name? }` → `201` |
 | `POST` | `/queue/leave` | `{ entryId }` |
+| `GET`/`POST` | `/webhook/whatsapp` | Meta calls this, not your frontend — see [ARCHITECTURE.md](ARCHITECTURE.md) |
 
 ### Authenticated
 
@@ -337,6 +304,9 @@ for the full list, and the note above on how to actually load it.
 | `PORT` | `3000` | HTTP port |
 | `CORS_ORIGINS` | Vite + Capacitor origins | comma-separated allowlist |
 | `WHATSAPP_TOKEN` / `WHATSAPP_PHONE_NUMBER_ID` | empty | set both to leave stub mode |
+| `WHATSAPP_VERIFY_TOKEN` | empty | any string you invent — Meta echoes it back on webhook setup |
+| `WHATSAPP_APP_SECRET` | empty | signs inbound webhooks; blank = signature check skipped (fine locally, required before public) |
+| `WHATSAPP_API_BASE_URL` | `https://graph.facebook.com/v25.0` | overridable so tests can point at a local stub |
 | `SEED_DEMO_DATA` | `true` | demo shop and logins on startup |
 
 Typed and bound in [`SmartQueueProperties`](src/main/java/com/smartqueue/config/SmartQueueProperties.java).

@@ -18,6 +18,9 @@ public interface QueueEntryJpaRepository extends JpaRepository<QueueEntryJpaEnti
     List<QueueEntryJpaEntity> findByShopIdAndStatusOrderByPositionAscJoinedAtAsc(
             String shopId, QueueStatus status);
 
+    Optional<QueueEntryJpaEntity> findFirstByPhoneAndStatusInOrderByJoinedAtDesc(
+            String phone, Collection<QueueStatus> statuses);
+
     int countByShopIdAndStatusInAndPositionLessThan(
             String shopId, Collection<QueueStatus> statuses, int position);
 
