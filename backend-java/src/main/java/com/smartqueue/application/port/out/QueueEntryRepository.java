@@ -16,6 +16,12 @@ public interface QueueEntryRepository {
     /** Everyone still waiting, in the order they will be served. */
     List<QueueEntry> findWaitingOrdered(String shopId);
 
+    /**
+     * This phone's most recent WAITING/IN_SERVICE entry, across any shop — how the
+     * WhatsApp bot answers "what's my status" without the customer supplying an id.
+     */
+    Optional<QueueEntry> findActiveByPhone(String phone);
+
     /** How many active customers sit in front of this position. */
     int countActiveAhead(String shopId, int position);
 
