@@ -5,9 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:lan": "vite --host",
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview",
+    "preview:lan": "vite preview --host",
     "cap:sync": "npm run build && cap sync",
     "cap:android": "cap open android",
     "cap:ios": "cap open ios"

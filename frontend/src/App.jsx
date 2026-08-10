@@ -15,6 +15,7 @@ import { store } from './store/store';
 import { selectIsAuthenticated, selectRole } from './store/authSlice';
 import { getRole } from './config/roles';
 import ProtectedRoute from './components/ProtectedRoute';
+import Footer from './components/Footer';
 import LoginScreen from './screens/LoginScreen';
 import OwnerDashboard from './screens/OwnerDashboard';
 import StaffDashboard from './screens/StaffDashboard';
@@ -84,8 +85,13 @@ export default function App() {
             {/* Fixed film-grain texture over the ambient backdrop. */}
             <div className="grain-overlay" aria-hidden="true" />
             <BrowserRouter>
-              <div className="relative z-10 min-h-full">
-                <AnimatedRoutes />
+              {/* Sticky-footer column: routes grow to fill, footer pins to the
+                  bottom on every page. */}
+              <div className="relative z-10 flex min-h-screen flex-col">
+                <div className="flex flex-1 flex-col">
+                  <AnimatedRoutes />
+                </div>
+                <Footer />
               </div>
             </BrowserRouter>
           </QueryClientProvider>
