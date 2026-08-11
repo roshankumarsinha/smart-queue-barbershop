@@ -16,6 +16,5 @@ public record QueueSnapshot(
         QueueEntry serving,
         List<QueueEntry> waiting,
         int totalWaiting,
-        int avgServiceTime,
         int estimatedWaitMinutes) {
 }

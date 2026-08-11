@@ -27,14 +27,33 @@ export const QueueStatus = {
 } as const;
 export type QueueStatus = (typeof QueueStatus)[keyof typeof QueueStatus];
 
-// Whether a shop is currently taking customers. A CLOSED shop is hidden from
-// GET /shops and rejects new queue joins, but stays reachable by id so staff can
-// manage or reopen it.
+// A shop's lifecycle state. Only OPEN takes customers; NEW (just registered) and
+// CLOSED are hidden from GET /shops and reject new queue joins, but stay reachable
+// by id so staff can open or reopen them. A freshly registered shop starts NEW.
 export const ShopStatus = {
+  NEW: 'NEW',
   OPEN: 'OPEN',
   CLOSED: 'CLOSED',
 } as const;
 export type ShopStatus = (typeof ShopStatus)[keyof typeof ShopStatus];
+
+// The kind of venue a shop is — Smart Queue is no longer barbershop-only. Mirrors
+// com.smartqueue.domain.ShopType and the frontend's src/config/shopTypes.js.
+export const ShopType = {
+  SALON: 'SALON',
+  RESTAURANT: 'RESTAURANT',
+  HOSPITAL: 'HOSPITAL',
+  CLINIC: 'CLINIC',
+  GOVERNMENT: 'GOVERNMENT',
+  RETAIL: 'RETAIL',
+  OTHER: 'OTHER',
+} as const;
+export type ShopType = (typeof ShopType)[keyof typeof ShopType];
+export const DEFAULT_SHOP_TYPE: ShopType = ShopType.SALON;
+
+// Fallback per-customer service time (minutes) for wait estimates until per-service
+// times exist (planned "register service" flow). Mirrors Shop.DEFAULT_SERVICE_MINUTES.
+export const DEFAULT_SERVICE_MINUTES = 20;
 
 export const ServiceType = {
   HAIRCUT: 'HAIRCUT',

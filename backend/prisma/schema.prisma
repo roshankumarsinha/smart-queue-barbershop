@@ -18,19 +18,34 @@ datasource db {
 }
 
 model Shop {
-  id             String   @id @default(cuid())
-  name           String
+  id   String @id @default(cuid())
+  name String
+
+  // The SHOP_OWNER user that owns this shop. One owner can hold many shops.
+  ownerId String?
+  owner   User?   @relation("ShopOwner", fields: [ownerId], references: [id])
+
+  // The kind of venue (SALON | RESTAURANT | HOSPITAL | CLINIC | GOVERNMENT | RETAIL | OTHER).
+  type String @default("SALON")
+
   // A shop's WhatsApp number is how customers reach it, so two shops must never
   // share one. NULL is exempt (a shop can be onboarded before its number is known),
   // and SQLite allows many NULLs under a unique constraint.
-  whatsappNumber String?  @unique
+  whatsappNumber String? @unique
+  phone          String? // the shop's own contact line, distinct from whatsappNumber
   address        String?
-  avgServiceTime Int      @default(20) // minutes, used for wait estimates
-  active         Boolean  @default(true) // OPEN when true, CLOSED when false (see ShopStatus)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  locationUrl    String? // a Google Maps share link, opened on click (no Maps API)
 
-  users        User[]
+  openingTime String? // "HH:mm", nullable — hours may be unknown at onboarding
+  closingTime String?
+
+  // Lifecycle: NEW (just registered) | OPEN (taking customers) | CLOSED. See ShopStatus.
+  status String @default("NEW")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users        User[]       @relation("ShopStaff")
   queueEntries QueueEntry[]
 }
 
@@ -47,8 +62,12 @@ model User {
   phone   String? @unique
   pinHash String?
 
+  // A staff member's shop (barbers, and the owner's default "active shop").
   shopId String?
-  shop   Shop?   @relation(fields: [shopId], references: [id])
+  shop   Shop?   @relation("ShopStaff", fields: [shopId], references: [id])
+
+  // Shops this user owns (SHOP_OWNER). Distinct from `shop` above.
+  ownedShops Shop[] @relation("ShopOwner")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

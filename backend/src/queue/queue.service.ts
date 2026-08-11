@@ -7,7 +7,7 @@ import type { QueueEntry, Shop } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { QueueGateway } from './queue.gateway';
-import { QueueStatus } from '../common/constants';
+import { QueueStatus, ShopStatus, DEFAULT_SERVICE_MINUTES } from '../common/constants';
 
 const ACTIVE = [QueueStatus.WAITING, QueueStatus.IN_SERVICE];
 
@@ -41,8 +41,7 @@ export class QueueService {
       serving,
       waiting,
       totalWaiting: waiting.length,
-      avgServiceTime: shop.avgServiceTime,
-      estimatedWaitMinutes: waiting.length * shop.avgServiceTime,
+      estimatedWaitMinutes: waiting.length * DEFAULT_SERVICE_MINUTES,
     };
   }
 
@@ -61,7 +60,7 @@ export class QueueService {
 
     const shop = await this.requireShop(entry.shopId);
     const ahead = await this.countActiveAhead(shop.id, entry.position);
-    return { entry, ahead, estimatedWaitMinutes: ahead * shop.avgServiceTime };
+    return { entry, ahead, estimatedWaitMinutes: ahead * DEFAULT_SERVICE_MINUTES };
   }
 
   // --- Writes ----------------------------------------------------------------
@@ -74,10 +73,10 @@ export class QueueService {
     name?: string;
   }) {
     const shop = await this.requireShop(input.shopId);
-    // A closed shop rejects both a customer messaging in and a staff walk-in — neither
-    // should be able to queue up somewhere that isn't taking customers.
-    if (!shop.active) {
-      throw new ConflictException('This shop is currently closed');
+    // Only an OPEN shop takes customers — a NEW (not yet opened) or CLOSED shop rejects
+    // both a customer messaging in and a staff walk-in.
+    if (shop.status !== ShopStatus.OPEN) {
+      throw new ConflictException('This shop is not currently taking customers');
     }
 
     const [lastToken, lastActive] = await Promise.all([
@@ -110,11 +109,11 @@ export class QueueService {
     await this.notifications.notify(
       entry.id,
       'JOINED',
-      `You're token #${entry.token}. ${ahead} ahead of you, ~${ahead * shop.avgServiceTime} min wait.`,
+      `You're token #${entry.token}. ${ahead} ahead of you, ~${ahead * DEFAULT_SERVICE_MINUTES} min wait.`,
     );
     await this.emit(input.shopId);
 
-    return { entry, ahead, estimatedWaitMinutes: ahead * shop.avgServiceTime };
+    return { entry, ahead, estimatedWaitMinutes: ahead * DEFAULT_SERVICE_MINUTES };
   }
 
   // Advance the queue: finish the current customer, promote the next one.
@@ -282,7 +281,7 @@ export class QueueService {
       await this.notifications.notify(
         next.id,
         'ALMOST_YOUR_TURN',
-        headsUpMessage(next, i + 1, ahead * shop.avgServiceTime),
+        headsUpMessage(next, i + 1, ahead * DEFAULT_SERVICE_MINUTES),
       );
     }
   }

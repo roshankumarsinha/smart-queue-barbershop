@@ -9,5 +9,9 @@ public interface ShopJpaRepository extends JpaRepository<ShopJpaEntity, String> 
 
     List<ShopJpaEntity> findAllByOrderByCreatedAtAsc();
 
+    List<ShopJpaEntity> findByOwnerIdOrderByCreatedAtAsc(String ownerId);
+
+    long countByOwnerId(String ownerId);
+
     boolean existsByWhatsappNumber(String whatsappNumber);
 }

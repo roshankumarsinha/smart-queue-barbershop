@@ -27,6 +27,11 @@ public class ShopService implements ManageShopsUseCase {
     }
 
     @Override
+    public List<Shop> findByOwner(String ownerId) {
+        return shops.findByOwnerId(ownerId);
+    }
+
+    @Override
     public Shop findById(String shopId) {
         return shops.findById(shopId).orElseThrow(() -> new NotFoundException("Shop not found"));
     }
@@ -38,7 +43,16 @@ public class ShopService implements ManageShopsUseCase {
     @Override
     @Transactional
     public Shop create(CreateShopCommand command) {
-        Shop shop = Shop.opening(command.name(), command.whatsappNumber(), command.address(), command.avgServiceTime());
+        Shop shop = Shop.opening(
+                command.ownerId(),
+                command.name(),
+                command.type(),
+                command.whatsappNumber(),
+                command.phone(),
+                command.address(),
+                command.locationUrl(),
+                command.openingTime(),
+                command.closingTime());
         if (shop.whatsappNumber() != null && shops.existsByWhatsappNumber(shop.whatsappNumber())) {
             throw new ConflictException("A shop with this WhatsApp number already exists");
         }

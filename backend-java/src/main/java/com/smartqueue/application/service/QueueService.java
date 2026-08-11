@@ -74,7 +74,6 @@ public class QueueService
                 serving,
                 waiting,
                 waiting.size(),
-                shop.avgServiceTime(),
                 shop.estimatedWaitMinutes(waiting.size()));
     }
 

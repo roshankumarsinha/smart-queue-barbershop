@@ -9,7 +9,6 @@ public record QueueStatusResponse(
         QueueEntryResponse serving,
         List<QueueEntryResponse> waiting,
         int totalWaiting,
-        int avgServiceTime,
         int estimatedWaitMinutes) {
 
     public static QueueStatusResponse from(QueueSnapshot s) {
@@ -18,7 +17,6 @@ public record QueueStatusResponse(
                 QueueEntryResponse.from(s.serving()),
                 s.waiting().stream().map(QueueEntryResponse::from).toList(),
                 s.totalWaiting(),
-                s.avgServiceTime(),
                 s.estimatedWaitMinutes());
     }
 }

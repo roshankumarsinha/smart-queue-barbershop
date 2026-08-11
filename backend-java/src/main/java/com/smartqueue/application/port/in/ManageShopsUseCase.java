@@ -10,6 +10,9 @@ public interface ManageShopsUseCase {
     /** Open shops only — a closed shop is still reachable via {@link #findById}. */
     List<Shop> findAll();
 
+    /** Every shop belonging to one owner, oldest first (open and closed alike). */
+    List<Shop> findByOwner(String ownerId);
+
     Shop findById(String shopId);
 
     Shop create(CreateShopCommand command);

@@ -27,11 +27,16 @@ final class PersistenceMapper {
     static Shop toDomain(ShopJpaEntity e) {
         return new Shop(
                 e.getId(),
+                e.getOwnerId(),
                 e.getName(),
+                e.getType(),
                 e.getWhatsappNumber(),
+                e.getPhone(),
                 e.getAddress(),
-                e.getAvgServiceTime(),
-                e.isActive(),
+                e.getLocationUrl(),
+                e.getStatus(),
+                e.getOpeningTime(),
+                e.getClosingTime(),
                 e.getCreatedAt(),
                 e.getUpdatedAt());
     }
@@ -39,11 +44,16 @@ final class PersistenceMapper {
     static ShopJpaEntity toEntity(Shop s) {
         return new ShopJpaEntity(
                 idOrNew(s.id()),
+                s.ownerId(),
                 s.name(),
+                s.type(),
                 s.whatsappNumber(),
+                s.phone(),
                 s.address(),
-                s.avgServiceTime(),
-                s.active(),
+                s.locationUrl(),
+                s.openingTime(),
+                s.closingTime(),
+                s.status(),
                 s.createdAt(),
                 s.updatedAt());
     }

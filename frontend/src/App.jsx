@@ -20,6 +20,7 @@ import LoginScreen from './screens/LoginScreen';
 import OwnerDashboard from './screens/OwnerDashboard';
 import StaffDashboard from './screens/StaffDashboard';
 import AdminDashboard from './screens/AdminDashboard';
+import OwnerShops from './screens/OwnerShops';
 
 // Single react-query client for the whole app. Real API calls will hang off
 // this once a backend exists (see src/api/client.js).
@@ -64,6 +65,14 @@ function AnimatedRoutes() {
           element={
             <ProtectedRoute allow="SUPER_ADMIN">
               <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/owners/:ownerId"
+          element={
+            <ProtectedRoute allow="SUPER_ADMIN">
+              <OwnerShops />
             </ProtectedRoute>
           }
         />

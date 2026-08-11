@@ -4,6 +4,8 @@ import com.smartqueue.application.port.out.PasswordHasher;
 import com.smartqueue.application.port.out.ShopRepository;
 import com.smartqueue.application.port.out.UserRepository;
 import com.smartqueue.domain.Role;
+import com.smartqueue.domain.ShopStatus;
+import com.smartqueue.domain.ShopType;
 import com.smartqueue.domain.model.Shop;
 import com.smartqueue.domain.model.User;
 import org.slf4j.Logger;
@@ -30,14 +32,27 @@ class DemoDataSeeder {
     @Bean
     ApplicationRunner seedDemoData(ShopRepository shops, UserRepository users, PasswordHasher hasher) {
         return args -> {
+            // Owner and shop reference each other (users.shop_id <-> shops.owner_id), so
+            // they are seeded in FK order: owner first with no shop, then the shop
+            // pointing at the owner, then the owner is linked back to the shop.
+            User owner = ensureUser(users, Role.SHOP_OWNER, "owner@shop.com", null, () -> new User(
+                    null, Role.SHOP_OWNER, "Shop Owner", "owner@shop.com",
+                    hasher.hash("secret123"), null, null, null));
+
             Shop shop = shops.findById(DEMO_SHOP_ID)
                     .orElseGet(() -> shops.save(new Shop(
-                            DEMO_SHOP_ID, "Downtown Cuts", "+10000000000", "221B Baker Street",
-                            18, true, null, null)));
+                            DEMO_SHOP_ID, owner.id(), "Downtown Cuts", ShopType.SALON,
+                            "+10000000000", null, "221B Baker Street", null,
+                            ShopStatus.OPEN, null, null, null, null)));
 
-            ensureUser(users, Role.SHOP_OWNER, "owner@shop.com", null, () -> new User(
-                    null, Role.SHOP_OWNER, "Shop Owner", "owner@shop.com",
-                    hasher.hash("secret123"), null, null, shop.id()));
+            // Give the demo owner a default "active shop" so the single-shop owner
+            // dashboard keeps working until the multi-shop switcher lands. New owners
+            // created via the admin flow own shops through owner_id and have no default.
+            if (owner.shopId() == null) {
+                users.save(new User(
+                        owner.id(), owner.role(), owner.name(), owner.email(),
+                        owner.passwordHash(), owner.phone(), owner.pinHash(), shop.id()));
+            }
 
             ensureUser(users, Role.BARBER_STAFF, null, "9876543210", () -> new User(
                     null, Role.BARBER_STAFF, "Barber", null, null,
@@ -54,17 +69,16 @@ class DemoDataSeeder {
         };
     }
 
-    private static void ensureUser(
+    /** Returns the existing user for this role/identifier, or the freshly-saved one. */
+    private static User ensureUser(
             UserRepository users,
             Role role,
             String email,
             String phone,
             java.util.function.Supplier<User> factory) {
-        boolean exists = email != null
-                ? users.findByEmailAndRole(email, role).isPresent()
-                : users.findByPhoneAndRole(phone, role).isPresent();
-        if (!exists) {
-            users.save(factory.get());
-        }
+        return (email != null
+                        ? users.findByEmailAndRole(email, role)
+                        : users.findByPhoneAndRole(phone, role))
+                .orElseGet(() -> users.save(factory.get()));
     }
 }

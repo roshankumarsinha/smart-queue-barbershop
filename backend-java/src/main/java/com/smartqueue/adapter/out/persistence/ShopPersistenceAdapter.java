@@ -32,6 +32,18 @@ class ShopPersistenceAdapter implements ShopRepository {
     }
 
     @Override
+    public List<Shop> findByOwnerId(String ownerId) {
+        return shops.findByOwnerIdOrderByCreatedAtAsc(ownerId).stream()
+                .map(PersistenceMapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public long countByOwnerId(String ownerId) {
+        return shops.countByOwnerId(ownerId);
+    }
+
+    @Override
     public boolean existsByWhatsappNumber(String whatsappNumber) {
         return shops.existsByWhatsappNumber(whatsappNumber);
     }

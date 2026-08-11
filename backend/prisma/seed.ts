@@ -5,18 +5,9 @@ const prisma = new PrismaClient();
 
 // Demo data so the frontend login works immediately. Idempotent (upserts).
 async function main() {
-  const shop = await prisma.shop.upsert({
-    where: { id: 'demo-shop' },
-    update: {},
-    create: {
-      id: 'demo-shop',
-      name: 'Downtown Cuts',
-      whatsappNumber: '+10000000000',
-      address: '221B Baker Street',
-      avgServiceTime: 18,
-    },
-  });
-
+  // Owner and shop reference each other (User.shopId <-> Shop.ownerId), so seed in
+  // FK order: owner first (no shop), then the shop pointing at the owner, then link
+  // the owner's default "active shop" back so the single-shop owner dashboard works.
   const owner = await prisma.user.upsert({
     where: { email: 'owner@shop.com' },
     update: {},
@@ -25,8 +16,26 @@ async function main() {
       name: 'Shop Owner',
       email: 'owner@shop.com',
       passwordHash: await bcrypt.hash('secret123', 10),
-      shopId: shop.id,
     },
+  });
+
+  const shop = await prisma.shop.upsert({
+    where: { id: 'demo-shop' },
+    update: {},
+    create: {
+      id: 'demo-shop',
+      name: 'Downtown Cuts',
+      ownerId: owner.id,
+      type: 'SALON',
+      whatsappNumber: '+10000000000',
+      address: '221B Baker Street',
+      status: 'OPEN',
+    },
+  });
+
+  await prisma.user.update({
+    where: { id: owner.id },
+    data: { shopId: shop.id },
   });
 
   const barber = await prisma.user.upsert({
