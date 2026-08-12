@@ -4,7 +4,7 @@ import { useSelector } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Box, CircularProgress, Snackbar, Typography } from '@mui/material';
-import { ArrowLeft, Store, Plus, MapPin, MessageCircle, Clock, CheckCircle2, Mail } from 'lucide-react';
+import { ArrowLeft, Store, Plus, MapPin, MessageCircle, Clock, CheckCircle2, Mail, ChevronRight, Sparkles } from 'lucide-react';
 import DashboardShell from '../components/DashboardShell';
 import PageTransition from '../components/PageTransition';
 import ShimmerButton from '../components/ShimmerButton';
@@ -12,6 +12,7 @@ import RegisterShopDialog from '../components/RegisterShopDialog';
 import { getOwner, getOwnerShops } from '../api/owners';
 import { selectToken } from '../store/authSlice';
 import { getShopType } from '../config/shopTypes';
+import { getStatusStyle } from '../config/shopStatus';
 import { staggerContainer, staggerItem } from '../lib/motion';
 
 function initialsOf(name) {
@@ -27,17 +28,10 @@ function formatTime(t) {
   return `${h12}:${m} ${suffix}`;
 }
 
-// Three-state shop lifecycle: NEW (just registered), OPEN, CLOSED.
-const STATUS_STYLES = {
-  NEW: { label: 'NEW', color: 'primary.dark', bg: 'rgba(200,155,60,0.18)', dot: '#C89B3C' },
-  OPEN: { label: 'OPEN', color: 'success.main', bg: 'rgba(63,122,87,0.15)', dot: '#3F7A57' },
-  CLOSED: { label: 'CLOSED', color: 'text.secondary', bg: 'rgba(107,93,79,0.15)', dot: '#6B5D4F' },
-};
-
-function ShopCard({ shop, justAdded }) {
+function ShopCard({ shop, justAdded, onOpen }) {
   const meta = getShopType(shop.type);
   const Icon = meta.icon;
-  const st = STATUS_STYLES[shop.status] ?? STATUS_STYLES.CLOSED;
+  const st = getStatusStyle(shop.status);
   const hours = shop.openingTime && shop.closingTime
     ? `${formatTime(shop.openingTime)} – ${formatTime(shop.closingTime)}`
     : null;
@@ -47,10 +41,21 @@ function ShopCard({ shop, justAdded }) {
       component={motion.div}
       variants={staggerItem}
       whileHover={{ y: -3 }}
+      whileTap={{ scale: 0.995 }}
       transition={{ type: 'spring', stiffness: 400, damping: 26 }}
+      onClick={onOpen}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
       sx={{
         borderRadius: 2,
         p: 1.75,
+        cursor: 'pointer',
         bgcolor: 'background.paper',
         color: 'text.primary',
         boxShadow: 3,
@@ -58,6 +63,7 @@ function ShopCard({ shop, justAdded }) {
         borderColor: justAdded ? 'rgba(200,155,60,0.65)' : 'rgba(200,155,60,0.16)',
         transition: 'box-shadow 200ms, border-color 200ms',
         '&:hover': { boxShadow: '0 16px 30px -14px rgba(0,0,0,0.65)', borderColor: 'rgba(200,155,60,0.4)' },
+        '&:hover .manage-chev': { transform: 'translateX(3px)' },
       }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -112,6 +118,28 @@ function ShopCard({ shop, justAdded }) {
       )}
 
       <IdLine label="Shop ID" value={shop.id} />
+
+      {/* Affordance: the whole card opens the shop's services */}
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.5,
+          mt: 1.25,
+          pt: 1.25,
+          borderTop: '1px dashed rgba(107,93,79,0.25)',
+          color: 'primary.dark',
+        }}
+      >
+        <Sparkles size={14} aria-hidden="true" />
+        <Typography sx={{ flex: 1, fontSize: 12.5, fontWeight: 700 }}>Manage services</Typography>
+        <ChevronRight
+          size={18}
+          aria-hidden="true"
+          className="manage-chev"
+          style={{ transition: 'transform 200ms' }}
+        />
+      </Box>
     </Box>
   );
 }
@@ -121,6 +149,7 @@ function IdLine({ label, value }) {
   return (
     <Typography
       component="div"
+      onClick={(e) => e.stopPropagation()}
       sx={{
         mt: 1.25,
         fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
@@ -128,6 +157,7 @@ function IdLine({ label, value }) {
         color: 'text.secondary',
         wordBreak: 'break-all',
         userSelect: 'all',
+        cursor: 'text',
       }}
     >
       <Box component="span" sx={{ opacity: 0.7 }}>{label} · </Box>
@@ -158,7 +188,14 @@ function MetaChip({ icon: Icon, label, href }) {
     ...(href && { '&:hover': { color: 'primary.dark', bgcolor: 'rgba(200,155,60,0.16)' } }),
   };
   return href ? (
-    <Box component="a" href={href} target="_blank" rel="noopener noreferrer" sx={{ ...sx, cursor: 'pointer' }}>
+    <Box
+      component="a"
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      sx={{ ...sx, cursor: 'pointer' }}
+    >
       {inner}
     </Box>
   ) : (
@@ -331,7 +368,12 @@ export default function OwnerShops() {
           >
             <AnimatePresence initial={false}>
               {shops.map((shop) => (
-                <ShopCard key={shop.id} shop={shop} justAdded={shop.id === justAddedId} />
+                <ShopCard
+                  key={shop.id}
+                  shop={shop}
+                  justAdded={shop.id === justAddedId}
+                  onOpen={() => navigate(`/admin/shops/${shop.id}`)}
+                />
               ))}
             </AnimatePresence>
           </Box>
