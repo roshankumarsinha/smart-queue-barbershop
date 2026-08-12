@@ -3,10 +3,12 @@ package com.smartqueue.adapter.out.persistence;
 import com.smartqueue.adapter.out.persistence.entity.NotificationJpaEntity;
 import com.smartqueue.adapter.out.persistence.entity.QueueEntryJpaEntity;
 import com.smartqueue.adapter.out.persistence.entity.ShopJpaEntity;
+import com.smartqueue.adapter.out.persistence.entity.ShopServiceJpaEntity;
 import com.smartqueue.adapter.out.persistence.entity.UserJpaEntity;
 import com.smartqueue.domain.model.Notification;
 import com.smartqueue.domain.model.QueueEntry;
 import com.smartqueue.domain.model.Shop;
+import com.smartqueue.domain.model.ShopService;
 import com.smartqueue.domain.model.User;
 
 import java.util.UUID;
@@ -27,11 +29,16 @@ final class PersistenceMapper {
     static Shop toDomain(ShopJpaEntity e) {
         return new Shop(
                 e.getId(),
+                e.getOwnerId(),
                 e.getName(),
+                e.getType(),
                 e.getWhatsappNumber(),
+                e.getPhone(),
                 e.getAddress(),
-                e.getAvgServiceTime(),
-                e.isActive(),
+                e.getLocationUrl(),
+                e.getStatus(),
+                e.getOpeningTime(),
+                e.getClosingTime(),
                 e.getCreatedAt(),
                 e.getUpdatedAt());
     }
@@ -39,11 +46,16 @@ final class PersistenceMapper {
     static ShopJpaEntity toEntity(Shop s) {
         return new ShopJpaEntity(
                 idOrNew(s.id()),
+                s.ownerId(),
                 s.name(),
+                s.type(),
                 s.whatsappNumber(),
+                s.phone(),
                 s.address(),
-                s.avgServiceTime(),
-                s.active(),
+                s.locationUrl(),
+                s.openingTime(),
+                s.closingTime(),
+                s.status(),
                 s.createdAt(),
                 s.updatedAt());
     }
@@ -98,6 +110,28 @@ final class PersistenceMapper {
                 q.position(),
                 q.joinedAt(),
                 q.updatedAt());
+    }
+
+    static ShopService toDomain(ShopServiceJpaEntity e) {
+        return new ShopService(
+                e.getId(),
+                e.getShopId(),
+                e.getService(),
+                e.getPrice(),
+                e.getEstimatedMinutes(),
+                e.getCreatedAt(),
+                e.getUpdatedAt());
+    }
+
+    static ShopServiceJpaEntity toEntity(ShopService s) {
+        return new ShopServiceJpaEntity(
+                idOrNew(s.id()),
+                s.shopId(),
+                s.service(),
+                s.price(),
+                s.estimatedMinutes(),
+                s.createdAt(),
+                s.updatedAt());
     }
 
     static Notification toDomain(NotificationJpaEntity e) {

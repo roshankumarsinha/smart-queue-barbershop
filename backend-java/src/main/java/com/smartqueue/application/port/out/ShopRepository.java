@@ -11,6 +11,11 @@ public interface ShopRepository {
 
     List<Shop> findAllByCreatedAt();
 
+    /** Shops belonging to one owner, oldest first. */
+    List<Shop> findByOwnerId(String ownerId);
+
+    long countByOwnerId(String ownerId);
+
     boolean existsByWhatsappNumber(String whatsappNumber);
 
     Shop save(Shop shop);

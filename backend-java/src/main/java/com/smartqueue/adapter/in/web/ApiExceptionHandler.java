@@ -3,6 +3,7 @@ package com.smartqueue.adapter.in.web;
 import com.smartqueue.domain.exception.ConflictException;
 import com.smartqueue.domain.exception.InvalidCredentialsException;
 import com.smartqueue.domain.exception.NotFoundException;
+import com.smartqueue.domain.exception.ValidationException;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -34,6 +35,11 @@ class ApiExceptionHandler {
     @ExceptionHandler(ConflictException.class)
     ResponseEntity<ErrorResponse> handleConflict(ConflictException e) {
         return build(HttpStatus.CONFLICT, e.getMessage());
+    }
+
+    @ExceptionHandler(ValidationException.class)
+    ResponseEntity<ErrorResponse> handleValidation(ValidationException e) {
+        return build(HttpStatus.BAD_REQUEST, e.getMessage());
     }
 
     @ExceptionHandler(InvalidCredentialsException.class)
