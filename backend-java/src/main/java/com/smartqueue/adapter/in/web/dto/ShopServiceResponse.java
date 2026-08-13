@@ -19,7 +19,7 @@ public record ShopServiceResponse(
         return new ShopServiceResponse(
                 s.id(),
                 s.shopId(),
-                s.service().name(),
+                s.service().code(),
                 s.service().label(),
                 s.price(),
                 s.estimatedMinutes(),

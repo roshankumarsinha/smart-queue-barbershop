@@ -1,6 +1,5 @@
 package com.smartqueue.application.port.out;
 
-import com.smartqueue.domain.CatalogService;
 import com.smartqueue.domain.model.ShopService;
 
 import java.util.List;
@@ -13,7 +12,7 @@ public interface ShopServiceRepository {
 
     Optional<ShopService> findById(String id);
 
-    boolean existsByShopIdAndService(String shopId, CatalogService service);
+    boolean existsByShopIdAndService(String shopId, String serviceCode);
 
     ShopService save(ShopService service);
 

@@ -6,6 +6,6 @@ import com.smartqueue.domain.CatalogService;
 public record CatalogItemResponse(String code, String label) {
 
     public static CatalogItemResponse from(CatalogService s) {
-        return new CatalogItemResponse(s.name(), s.label());
+        return new CatalogItemResponse(s.code(), s.label());
     }
 }

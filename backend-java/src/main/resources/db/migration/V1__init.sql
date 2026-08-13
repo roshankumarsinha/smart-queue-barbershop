@@ -64,14 +64,43 @@ CREATE UNIQUE INDEX uq_shops_whatsapp_number
 -- "Which shops does this owner run?" is the hot query on the admin drill-down.
 CREATE INDEX idx_shops_owner ON shops (owner_id);
 
--- Each row is one service a shop provides, chosen from a per-shop-type catalog
--- (com.smartqueue.domain.CatalogService — e.g. SALON: HAIRCUT, BEARD, FACIAL, …).
--- Unlike the enum-like columns elsewhere, service_code has no CHECK: the allowed
--- codes span shop types and grow often, so a CHECK would need constant widening.
+-- The catalog of services that can be offered, scoped by shop type. This is data
+-- rather than a Java enum so a new service ("Hair Botox") can be added without a
+-- deploy. sort_order drives the "add service" dropdown; retiring a service means
+-- setting active = FALSE, never deleting — shop_services rows still reference it.
+CREATE TABLE service_catalog (
+    code       VARCHAR(64) PRIMARY KEY,
+    shop_type  VARCHAR(32)  NOT NULL,
+    label      VARCHAR(255) NOT NULL,
+    sort_order INTEGER      NOT NULL DEFAULT 0,
+    active     BOOLEAN      NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    CONSTRAINT chk_service_catalog_shop_type
+        CHECK (shop_type IN ('SALON', 'RESTAURANT', 'HOSPITAL', 'CLINIC', 'GOVERNMENT', 'RETAIL', 'OTHER'))
+);
+
+CREATE INDEX idx_service_catalog_shop_type ON service_catalog (shop_type, sort_order);
+
+-- The starting catalog. Other verticals plug in by inserting rows with their own
+-- shop_type; nothing in the services layer needs to change.
+INSERT INTO service_catalog (code, shop_type, label, sort_order) VALUES
+    ('HAIRCUT',      'SALON', 'Haircut',        10),
+    ('BEARD',        'SALON', 'Beard grooming', 20),
+    ('SHAVE',        'SALON', 'Shave',          30),
+    ('FACIAL',       'SALON', 'Facial',         40),
+    ('DETAN',        'SALON', 'De-tan',         50),
+    ('HAIR_COLOR',   'SALON', 'Hair colour',    60),
+    ('HEAD_MASSAGE', 'SALON', 'Head massage',   70),
+    ('HAIR_SPA',     'SALON', 'Hair spa',       80),
+    ('HAIR_WASH',    'SALON', 'Hair wash',      90),
+    ('KIDS_HAIRCUT', 'SALON', 'Kids haircut',  100);
+
+-- Each row is one service a shop provides, chosen from service_catalog above.
 CREATE TABLE shop_services (
     id                VARCHAR(64) PRIMARY KEY,
     shop_id           VARCHAR(64)  NOT NULL REFERENCES shops (id),
-    service_code      VARCHAR(64)  NOT NULL,
+    service_code      VARCHAR(64)  NOT NULL REFERENCES service_catalog (code),
     price             INTEGER,                              -- INR, whole rupees; NULL = not priced
     estimated_minutes INTEGER      NOT NULL,                -- drives queue wait estimates
     created_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW(),

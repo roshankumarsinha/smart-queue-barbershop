@@ -2,9 +2,11 @@ package com.smartqueue.adapter.out.persistence;
 
 import com.smartqueue.adapter.out.persistence.entity.NotificationJpaEntity;
 import com.smartqueue.adapter.out.persistence.entity.QueueEntryJpaEntity;
+import com.smartqueue.adapter.out.persistence.entity.ServiceCatalogJpaEntity;
 import com.smartqueue.adapter.out.persistence.entity.ShopJpaEntity;
 import com.smartqueue.adapter.out.persistence.entity.ShopServiceJpaEntity;
 import com.smartqueue.adapter.out.persistence.entity.UserJpaEntity;
+import com.smartqueue.domain.CatalogService;
 import com.smartqueue.domain.model.Notification;
 import com.smartqueue.domain.model.QueueEntry;
 import com.smartqueue.domain.model.Shop;
@@ -114,11 +116,17 @@ final class PersistenceMapper {
                 q.updatedAt());
     }
 
-    static ShopService toDomain(ShopServiceJpaEntity e) {
+    static CatalogService toDomain(ServiceCatalogJpaEntity e) {
+        return new CatalogService(
+                e.getCode(), e.getShopType(), e.getLabel(), e.getSortOrder(), e.isActive());
+    }
+
+    /** The catalog entry is looked up separately — see ShopServicePersistenceAdapter. */
+    static ShopService toDomain(ShopServiceJpaEntity e, CatalogService service) {
         return new ShopService(
                 e.getId(),
                 e.getShopId(),
-                e.getService(),
+                service,
                 e.getPrice(),
                 e.getEstimatedMinutes(),
                 e.getCreatedAt(),
@@ -129,7 +137,7 @@ final class PersistenceMapper {
         return new ShopServiceJpaEntity(
                 idOrNew(s.id()),
                 s.shopId(),
-                s.service(),
+                s.service().code(),
                 s.price(),
                 s.estimatedMinutes(),
                 s.createdAt(),

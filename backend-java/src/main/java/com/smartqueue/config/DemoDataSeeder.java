@@ -2,6 +2,7 @@ package com.smartqueue.config;
 
 import com.smartqueue.application.port.out.PasswordHasher;
 import com.smartqueue.application.port.out.QueueEntryRepository;
+import com.smartqueue.application.port.out.ServiceCatalogRepository;
 import com.smartqueue.application.port.out.ShopRepository;
 import com.smartqueue.application.port.out.ShopServiceRepository;
 import com.smartqueue.application.port.out.UserRepository;
@@ -50,6 +51,7 @@ class DemoDataSeeder {
             ShopRepository shops,
             UserRepository users,
             ShopServiceRepository shopServices,
+            ServiceCatalogRepository catalog,
             QueueEntryRepository queueEntries,
             PasswordHasher hasher) {
         return args -> {
@@ -97,25 +99,24 @@ class DemoDataSeeder {
                     null, Role.BARBER_STAFF, "Barber", null, null,
                     "9876543210", hasher.hash("1234"), shop.id()));
 
-            seedServices(shopServices, shop.id(), List.of(
-                    service(CatalogService.HAIRCUT, 250, 20),
-                    service(CatalogService.BEARD, 150, 10),
-                    service(CatalogService.SHAVE, 120, 15),
-                    service(CatalogService.HAIR_COLOR, 900, 45),
-                    service(CatalogService.KIDS_HAIRCUT, 180, 15)));
+            seedServices(shopServices, catalog, shop.id(), List.of(
+                    service("HAIRCUT", 250, 20),
+                    service("BEARD", 150, 10),
+                    service("SHAVE", 120, 15),
+                    service("HAIR_COLOR", 900, 45),
+                    service("KIDS_HAIRCUT", 180, 15)));
 
-            seedServices(shopServices, uptown.id(), List.of(
-                    service(CatalogService.HAIRCUT, 400, 25),
-                    service(CatalogService.FACIAL, 700, 40),
-                    service(CatalogService.HAIR_SPA, 1200, 50)));
+            seedServices(shopServices, catalog, uptown.id(), List.of(
+                    service("HAIRCUT", 400, 25),
+                    service("FACIAL", 700, 40),
+                    service("HAIR_SPA", 1200, 50)));
 
             seedQueue(queueEntries, shop.id());
 
-            log.info("Seeded demo data — shops: {}, {}, {}", shop.name(), uptown.name(), "Riverside Barbers (NEW)");
-            log.info("  Admin:   admin@smartqueue.app / admin123");
-            log.info("  Owner:   owner@shop.com / secret123   (owns {} + Riverside)", shop.name());
-            log.info("  Owner 2: priya@salon.com / secret123  (owns {})", uptown.name());
-            log.info("  Barber:  9876543210 / 1234");
+            log.info("Seeded demo data — shops: {}, {}, {} (NEW)",
+                    shop.name(), uptown.name(), "Riverside Barbers");
+            log.info("  Accounts: admin@smartqueue.app (ADMIN), owner@shop.com + priya@salon.com "
+                    + "(SHOP_OWNER), 9876543210 (BARBER_STAFF) — see README for sign-in details");
             log.info("  Admin id {} is available for shop reassignment demos", admin.id());
         };
     }
@@ -151,17 +152,33 @@ class DemoDataSeeder {
         }
     }
 
+    /**
+     * Codes are resolved against service_catalog rather than trusted blindly, so a seed
+     * referring to a service that is not in the catalog fails loudly instead of leaving
+     * a dangling row for the FK to reject.
+     */
     private static void seedServices(
-            ShopServiceRepository shopServices, String shopId, List<ShopService> services) {
-        services.stream()
-                .filter(s -> !shopServices.existsByShopIdAndService(shopId, s.service()))
-                .forEach(s -> shopServices.save(ShopService.adding(
-                        shopId, s.service(), s.price(), s.estimatedMinutes())));
+            ShopServiceRepository shopServices,
+            ServiceCatalogRepository catalog,
+            String shopId,
+            List<SeedService> services) {
+        for (SeedService seed : services) {
+            if (shopServices.existsByShopIdAndService(shopId, seed.code())) {
+                continue;
+            }
+            CatalogService service = catalog.findByCode(seed.code())
+                    .orElseThrow(() -> new IllegalStateException(
+                            "Demo seed references unknown service code: " + seed.code()));
+            shopServices.save(ShopService.adding(
+                    shopId, service, seed.price(), seed.estimatedMinutes()));
+        }
     }
 
-    /** Shorthand for the seed list — shopId is filled in by {@link #seedServices}. */
-    private static ShopService service(CatalogService service, Integer price, int estimatedMinutes) {
-        return ShopService.adding(null, service, price, estimatedMinutes);
+    private record SeedService(String code, Integer price, int estimatedMinutes) {
+    }
+
+    private static SeedService service(String code, Integer price, int estimatedMinutes) {
+        return new SeedService(code, price, estimatedMinutes);
     }
 
     private static Shop ensureShop(ShopRepository shops, String shopId, Supplier<Shop> factory) {
