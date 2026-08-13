@@ -69,7 +69,8 @@ final class PersistenceMapper {
                 e.getPasswordHash(),
                 e.getPhone(),
                 e.getPinHash(),
-                e.getShopId());
+                e.getShopId(),
+                e.isActive());
     }
 
     static UserJpaEntity toEntity(User u) {
@@ -81,7 +82,8 @@ final class PersistenceMapper {
                 u.passwordHash(),
                 u.phone(),
                 u.pinHash(),
-                u.shopId());
+                u.shopId(),
+                u.active());
     }
 
     static QueueEntry toDomain(QueueEntryJpaEntity e) {

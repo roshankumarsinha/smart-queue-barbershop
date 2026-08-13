@@ -88,6 +88,38 @@ public record Shop(
         return withStatus(ShopStatus.CLOSED);
     }
 
+    /**
+     * A copy with edited profile fields. Every argument is "the new value", already
+     * merged by the caller — a null here clears the field rather than leaving it alone,
+     * so partial-update semantics belong in the service, not here. {@code status},
+     * timestamps and id are never editable this way.
+     */
+    public Shop withProfile(
+            String newOwnerId,
+            String newName,
+            ShopType newType,
+            String newWhatsappNumber,
+            String newPhone,
+            String newAddress,
+            String newLocationUrl,
+            LocalTime newOpeningTime,
+            LocalTime newClosingTime) {
+        return new Shop(
+                id,
+                newOwnerId,
+                newName,
+                newType,
+                blankToNull(newWhatsappNumber),
+                blankToNull(newPhone),
+                blankToNull(newAddress),
+                blankToNull(newLocationUrl),
+                status,
+                newOpeningTime,
+                newClosingTime,
+                createdAt,
+                updatedAt);
+    }
+
     private Shop withStatus(ShopStatus newStatus) {
         return new Shop(
                 id, ownerId, name, type, whatsappNumber, phone, address, locationUrl,

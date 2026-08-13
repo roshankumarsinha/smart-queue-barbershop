@@ -1,6 +1,6 @@
 import { api } from './client';
 
-// Services a shop offers — SUPER_ADMIN or the shop's owner. Java serves these under
+// Services a shop offers — ADMIN or the shop's owner. Java serves these under
 // /shops/:shopId/services.
 
 export const getShopServices = (shopId, token) =>

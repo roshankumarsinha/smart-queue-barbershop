@@ -45,7 +45,7 @@ src/
 
 - `SHOP_OWNER` — full dashboard, manage staff, reports, open/close shop
 - `BARBER_STAFF` — restricted: Next Customer / Add Walk-in / Skip
-- `SUPER_ADMIN` — manages all shops on the platform (SaaS side)
+- `ADMIN` — manages all shops on the platform (SaaS side)
 - `CUSTOMER` — reserved in the schema; no login screen (WhatsApp-only for now)
 
 ## Android (Capacitor)

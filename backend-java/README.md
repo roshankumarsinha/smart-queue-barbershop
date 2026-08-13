@@ -48,7 +48,7 @@ seeder inserts a demo shop plus three logins:
 | --- | --- | --- |
 | Shop owner | `SHOP_OWNER` | `owner@shop.com` / `secret123` |
 | Barber | `BARBER_STAFF` | `9876543210` / `1234` |
-| Super admin | `SUPER_ADMIN` | `admin@smartqueue.app` / `admin123` |
+| Admin | `ADMIN` | `admin@smartqueue.app` / `admin123` |
 
 Set `SEED_DEMO_DATA=false` anywhere that isn't a sandbox.
 
@@ -153,8 +153,8 @@ served at the root: this backend has no `/api` prefix, unlike the NestJS one.
 | `GET` | `/auth/me` | any |
 | `GET` | `/shops` | any — open shops only, closed ones are hidden |
 | `GET` | `/shops/{id}` | any — works for closed shops too |
-| `POST` | `/shops` | `SUPER_ADMIN` |
-| `POST` | `/shops/{id}/close`, `/shops/{id}/open` | `SUPER_ADMIN`, or the `SHOP_OWNER` of that shop |
+| `POST` | `/shops` | `ADMIN` |
+| `POST` | `/shops/{id}/close`, `/shops/{id}/open` | `ADMIN`, or the `SHOP_OWNER` of that shop |
 | `GET` | `/queue/board` | `?shopId=…` → full queue snapshot — `SHOP_OWNER`, `BARBER_STAFF` |
 | `POST` | `/queue/walkin` | `SHOP_OWNER`, `BARBER_STAFF` |
 | `POST` | `/queue/next` | `SHOP_OWNER`, `BARBER_STAFF` |

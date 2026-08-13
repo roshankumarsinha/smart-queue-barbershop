@@ -88,8 +88,8 @@ Socket.io there — see [README.md § Differences](README.md#differences-from-th
 
 ## What's built
 
-**Shops** — CRUD-lite: create (`SUPER_ADMIN`), list (open shops only), fetch by id
-(works even when closed), close/reopen (`SUPER_ADMIN` or that shop's own
+**Shops** — CRUD-lite: create (`ADMIN`), list (open shops only), fetch by id
+(works even when closed), close/reopen (`ADMIN` or that shop's own
 `SHOP_OWNER`). A shop has a `whatsappNumber` (globally unique, nullable) and an
 `address` (free text, nullable).
 

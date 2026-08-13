@@ -1,12 +1,19 @@
 package com.smartqueue.config;
 
 import com.smartqueue.application.port.out.PasswordHasher;
+import com.smartqueue.application.port.out.QueueEntryRepository;
 import com.smartqueue.application.port.out.ShopRepository;
+import com.smartqueue.application.port.out.ShopServiceRepository;
 import com.smartqueue.application.port.out.UserRepository;
+import com.smartqueue.domain.CatalogService;
+import com.smartqueue.domain.QueueStatus;
 import com.smartqueue.domain.Role;
+import com.smartqueue.domain.ServiceType;
 import com.smartqueue.domain.ShopStatus;
 import com.smartqueue.domain.ShopType;
+import com.smartqueue.domain.model.QueueEntry;
 import com.smartqueue.domain.model.Shop;
+import com.smartqueue.domain.model.ShopService;
 import com.smartqueue.domain.model.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,67 +22,155 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.List;
+import java.util.function.Supplier;
+
 /**
- * Demo data so the frontend login works immediately — the equivalent of
- * prisma/seed.ts. Idempotent: it only inserts what is missing. Disable with
- * {@code SEED_DEMO_DATA=false} in any environment that is not a sandbox.
+ * Demo data so every screen has something to show on a fresh database: an admin, two
+ * owners, three shops across the lifecycle states, priced services, and a live queue
+ * with someone in the chair.
+ *
+ * <p>Idempotent — it only inserts what is missing, so restarting the app never
+ * duplicates or resets anything. Disable with {@code SEED_DEMO_DATA=false} anywhere
+ * that is not a sandbox.
  */
 @Configuration
 @ConditionalOnProperty(name = "smartqueue.seed.demo-data", havingValue = "true")
 class DemoDataSeeder {
 
     private static final Logger log = LoggerFactory.getLogger(DemoDataSeeder.class);
-    private static final String DEMO_SHOP_ID = "demo-shop";
 
-    // Each repository call runs in its own transaction, which is all the atomicity
-    // idempotent inserts need here.
+    // Fixed ids keep the seed idempotent and give the frontend stable links to demo against.
+    private static final String DEMO_SHOP_ID = "demo-shop";
+    private static final String SECOND_SHOP_ID = "demo-shop-uptown";
+    private static final String NEW_SHOP_ID = "demo-shop-unopened";
+
     @Bean
-    ApplicationRunner seedDemoData(ShopRepository shops, UserRepository users, PasswordHasher hasher) {
+    ApplicationRunner seedDemoData(
+            ShopRepository shops,
+            UserRepository users,
+            ShopServiceRepository shopServices,
+            QueueEntryRepository queueEntries,
+            PasswordHasher hasher) {
         return args -> {
+            User admin = ensureUser(users, Role.ADMIN, "admin@smartqueue.app", null, () -> new User(
+                    null, Role.ADMIN, "Admin", "admin@smartqueue.app",
+                    hasher.hash("admin123"), null, null, null));
+
             // Owner and shop reference each other (users.shop_id <-> shops.owner_id), so
-            // they are seeded in FK order: owner first with no shop, then the shop
-            // pointing at the owner, then the owner is linked back to the shop.
+            // they are seeded in FK order: owner first with no shop, then the shops
+            // pointing at the owner, then the owner is linked back to their main shop.
             User owner = ensureUser(users, Role.SHOP_OWNER, "owner@shop.com", null, () -> new User(
                     null, Role.SHOP_OWNER, "Shop Owner", "owner@shop.com",
-                    hasher.hash("secret123"), null, null, null));
+                    hasher.hash("secret123"), "9000000001", null, null));
 
-            Shop shop = shops.findById(DEMO_SHOP_ID)
-                    .orElseGet(() -> shops.save(new Shop(
-                            DEMO_SHOP_ID, owner.id(), "Downtown Cuts", ShopType.SALON,
-                            "+10000000000", null, "221B Baker Street", null,
-                            ShopStatus.OPEN, null, null, null, null)));
+            // A second owner exists so the admin's owner list is never a list of one,
+            // and so "reassign this shop's owner" has somewhere to reassign to.
+            User secondOwner = ensureUser(users, Role.SHOP_OWNER, "priya@salon.com", null, () -> new User(
+                    null, Role.SHOP_OWNER, "Priya Sharma", "priya@salon.com",
+                    hasher.hash("secret123"), "9000000002", null, null));
 
-            // Give the demo owner a default "active shop" so the single-shop owner
-            // dashboard keeps working until the multi-shop switcher lands. New owners
-            // created via the admin flow own shops through owner_id and have no default.
+            Shop shop = ensureShop(shops, DEMO_SHOP_ID, () -> new Shop(
+                    DEMO_SHOP_ID, owner.id(), "Downtown Cuts", ShopType.SALON,
+                    "+10000000000", "9000000011", "221B Baker Street, Pune", null,
+                    ShopStatus.OPEN, null, null, null, null));
+
+            Shop uptown = ensureShop(shops, SECOND_SHOP_ID, () -> new Shop(
+                    SECOND_SHOP_ID, secondOwner.id(), "Uptown Salon", ShopType.SALON,
+                    "+10000000001", "9000000012", "12 MG Road, Pune", null,
+                    ShopStatus.OPEN, null, null, null, null));
+
+            // Left NEW on purpose: the "registered but not yet open" state is easy to
+            // forget exists, and it must stay hidden from the customer-facing shop list.
+            ensureShop(shops, NEW_SHOP_ID, () -> new Shop(
+                    NEW_SHOP_ID, owner.id(), "Riverside Barbers (not open yet)", ShopType.SALON,
+                    null, null, "5 River Lane, Pune", null,
+                    ShopStatus.NEW, null, null, null, null));
+
             if (owner.shopId() == null) {
                 users.save(new User(
                         owner.id(), owner.role(), owner.name(), owner.email(),
-                        owner.passwordHash(), owner.phone(), owner.pinHash(), shop.id()));
+                        owner.passwordHash(), owner.phone(), owner.pinHash(), shop.id(), owner.active()));
             }
 
             ensureUser(users, Role.BARBER_STAFF, null, "9876543210", () -> new User(
                     null, Role.BARBER_STAFF, "Barber", null, null,
                     "9876543210", hasher.hash("1234"), shop.id()));
 
-            ensureUser(users, Role.SUPER_ADMIN, "admin@smartqueue.app", null, () -> new User(
-                    null, Role.SUPER_ADMIN, "Super Admin", "admin@smartqueue.app",
-                    hasher.hash("admin123"), null, null, null));
+            seedServices(shopServices, shop.id(), List.of(
+                    service(CatalogService.HAIRCUT, 250, 20),
+                    service(CatalogService.BEARD, 150, 10),
+                    service(CatalogService.SHAVE, 120, 15),
+                    service(CatalogService.HAIR_COLOR, 900, 45),
+                    service(CatalogService.KIDS_HAIRCUT, 180, 15)));
 
-            log.info("Seeded demo data — shop: {} ({})", shop.name(), shop.id());
-            log.info("  Owner:  owner@shop.com / secret123");
-            log.info("  Barber: 9876543210 / 1234");
-            log.info("  Admin:  admin@smartqueue.app / admin123");
+            seedServices(shopServices, uptown.id(), List.of(
+                    service(CatalogService.HAIRCUT, 400, 25),
+                    service(CatalogService.FACIAL, 700, 40),
+                    service(CatalogService.HAIR_SPA, 1200, 50)));
+
+            seedQueue(queueEntries, shop.id());
+
+            log.info("Seeded demo data — shops: {}, {}, {}", shop.name(), uptown.name(), "Riverside Barbers (NEW)");
+            log.info("  Admin:   admin@smartqueue.app / admin123");
+            log.info("  Owner:   owner@shop.com / secret123   (owns {} + Riverside)", shop.name());
+            log.info("  Owner 2: priya@salon.com / secret123  (owns {})", uptown.name());
+            log.info("  Barber:  9876543210 / 1234");
+            log.info("  Admin id {} is available for shop reassignment demos", admin.id());
         };
+    }
+
+    /**
+     * A queue with one customer already in the chair and five waiting, so wait
+     * estimates, "N ahead of you" and the WhatsApp status flow all have real data
+     * to answer with. Skipped entirely once the shop has any entry — re-seeding a
+     * live queue would collide on the per-shop unique token.
+     */
+    private static void seedQueue(QueueEntryRepository queueEntries, String shopId) {
+        if (queueEntries.highestToken(shopId).isPresent()) {
+            return;
+        }
+        List<String[]> customers = List.of(
+                new String[] {"Rahul Verma", "919000000101"},
+                new String[] {"Anita Desai", "919000000102"},
+                new String[] {"Sam Patel", "919000000103"},
+                new String[] {"Neha Gupta", "919000000104"},
+                new String[] {"Arjun Rao", "919000000105"},
+                new String[] {"Vikram Singh", "919000000106"});
+        ServiceType[] services = {
+            ServiceType.HAIRCUT, ServiceType.BEARD, ServiceType.HAIRCUT_BEARD,
+            ServiceType.HAIRCUT, ServiceType.BEARD, ServiceType.HAIRCUT,
+        };
+
+        for (int i = 0; i < customers.size(); i++) {
+            String[] customer = customers.get(i);
+            QueueEntry entry = QueueEntry.joining(
+                    shopId, i + 1, i + 1, services[i], customer[1], customer[0]);
+            // The first customer is already being served; the rest are the waiting line.
+            queueEntries.save(i == 0 ? entry.withStatus(QueueStatus.IN_SERVICE) : entry);
+        }
+    }
+
+    private static void seedServices(
+            ShopServiceRepository shopServices, String shopId, List<ShopService> services) {
+        services.stream()
+                .filter(s -> !shopServices.existsByShopIdAndService(shopId, s.service()))
+                .forEach(s -> shopServices.save(ShopService.adding(
+                        shopId, s.service(), s.price(), s.estimatedMinutes())));
+    }
+
+    /** Shorthand for the seed list — shopId is filled in by {@link #seedServices}. */
+    private static ShopService service(CatalogService service, Integer price, int estimatedMinutes) {
+        return ShopService.adding(null, service, price, estimatedMinutes);
+    }
+
+    private static Shop ensureShop(ShopRepository shops, String shopId, Supplier<Shop> factory) {
+        return shops.findById(shopId).orElseGet(() -> shops.save(factory.get()));
     }
 
     /** Returns the existing user for this role/identifier, or the freshly-saved one. */
     private static User ensureUser(
-            UserRepository users,
-            Role role,
-            String email,
-            String phone,
-            java.util.function.Supplier<User> factory) {
+            UserRepository users, Role role, String email, String phone, Supplier<User> factory) {
         return (email != null
                         ? users.findByEmailAndRole(email, role)
                         : users.findByPhoneAndRole(phone, role))

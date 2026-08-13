@@ -1,6 +1,7 @@
 package com.smartqueue.application.port.in;
 
 import com.smartqueue.application.port.in.command.CreateShopCommand;
+import com.smartqueue.application.port.in.command.UpdateShopCommand;
 import com.smartqueue.domain.model.Shop;
 
 import java.util.List;
@@ -16,6 +17,9 @@ public interface ManageShopsUseCase {
     Shop findById(String shopId);
 
     Shop create(CreateShopCommand command);
+
+    /** Partial update — null fields on the command keep their current value. */
+    Shop update(String shopId, UpdateShopCommand command);
 
     /** Hides the shop from {@link #findAll} and stops it accepting new queue joins. */
     Shop close(String shopId);

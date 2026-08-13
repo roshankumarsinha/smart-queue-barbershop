@@ -9,7 +9,7 @@ import java.util.Set;
  */
 public enum Role {
     SHOP_OWNER(AuthMethod.EMAIL),
-    SUPER_ADMIN(AuthMethod.EMAIL),
+    ADMIN(AuthMethod.EMAIL),
     BARBER_STAFF(AuthMethod.PHONE),
     /** Customers never sign in; they join the queue via WhatsApp. */
     CUSTOMER(null);

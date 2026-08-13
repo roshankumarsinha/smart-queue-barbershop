@@ -7,6 +7,7 @@ import com.smartqueue.application.port.out.PasswordHasher;
 import com.smartqueue.application.port.out.ShopRepository;
 import com.smartqueue.application.port.out.UserRepository;
 import com.smartqueue.domain.Role;
+import com.smartqueue.domain.ShopStatus;
 import com.smartqueue.domain.exception.ConflictException;
 import com.smartqueue.domain.exception.NotFoundException;
 import com.smartqueue.domain.model.User;
@@ -74,6 +75,36 @@ public class OwnerService implements ManageOwnersUseCase {
     public OwnerAccount findById(String ownerId) {
         User owner = users.findByIdAndRole(ownerId, Role.SHOP_OWNER)
                 .orElseThrow(() -> new NotFoundException("Owner not found"));
+        return new OwnerAccount(owner, shops.countByOwnerId(owner.id()));
+    }
+
+    /**
+     * Closing the shops is the point, not a side effect: an owner who can no longer sign
+     * in must not leave shops quietly accepting customers nobody is serving. Already-closed
+     * shops are skipped, so reactivating and re-closing does not churn timestamps.
+     */
+    @Override
+    @Transactional
+    public OwnerAccount deactivate(String ownerId) {
+        User owner = requireOwner(ownerId);
+        shops.findByOwnerId(ownerId).stream()
+                .filter(shop -> shop.status() != ShopStatus.CLOSED)
+                .forEach(shop -> shops.save(shop.closed()));
+        return toAccount(users.save(owner.deactivated()));
+    }
+
+    @Override
+    @Transactional
+    public OwnerAccount activate(String ownerId) {
+        return toAccount(users.save(requireOwner(ownerId).activated()));
+    }
+
+    private User requireOwner(String ownerId) {
+        return users.findByIdAndRole(ownerId, Role.SHOP_OWNER)
+                .orElseThrow(() -> new NotFoundException("Owner not found"));
+    }
+
+    private OwnerAccount toAccount(User owner) {
         return new OwnerAccount(owner, shops.countByOwnerId(owner.id()));
     }
 

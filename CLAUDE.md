@@ -35,7 +35,7 @@ Defined once per layer — keep them in sync:
 | --- | --- | --- |
 | `SHOP_OWNER` | email + password | `/owner` |
 | `BARBER_STAFF` | phone + 4-digit PIN | `/staff` |
-| `SUPER_ADMIN` | email + password | `/admin` |
+| `ADMIN` | email + password | `/admin` |
 | `CUSTOMER` | never logs in (WhatsApp only) | — |
 
 Demo logins (seeded, both backends): owner `owner@shop.com` / `secret123`;

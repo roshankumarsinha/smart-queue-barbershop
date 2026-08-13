@@ -64,7 +64,7 @@ function AnimatedRoutes() {
         <Route
           path="/admin"
           element={
-            <ProtectedRoute allow="SUPER_ADMIN">
+            <ProtectedRoute allow="ADMIN">
               <AdminDashboard />
             </ProtectedRoute>
           }
@@ -72,7 +72,7 @@ function AnimatedRoutes() {
         <Route
           path="/admin/owners/:ownerId"
           element={
-            <ProtectedRoute allow="SUPER_ADMIN">
+            <ProtectedRoute allow="ADMIN">
               <OwnerShops />
             </ProtectedRoute>
           }
@@ -80,7 +80,7 @@ function AnimatedRoutes() {
         <Route
           path="/admin/shops/:shopId"
           element={
-            <ProtectedRoute allow="SUPER_ADMIN">
+            <ProtectedRoute allow="ADMIN">
               <ShopServices />
             </ProtectedRoute>
           }
