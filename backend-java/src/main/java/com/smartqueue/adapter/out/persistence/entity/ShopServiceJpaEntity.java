@@ -1,10 +1,7 @@
 package com.smartqueue.adapter.out.persistence.entity;
 
-import com.smartqueue.domain.CatalogService;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.CreationTimestamp;
@@ -22,9 +19,9 @@ public class ShopServiceJpaEntity {
     @Column(name = "shop_id", nullable = false)
     private String shopId;
 
-    @Enumerated(EnumType.STRING)
+    /** A service_catalog.code — resolved to its label by the persistence adapter. */
     @Column(name = "service_code", nullable = false, length = 64)
-    private CatalogService service;
+    private String serviceCode;
 
     @Column
     private Integer price;
@@ -47,14 +44,14 @@ public class ShopServiceJpaEntity {
     public ShopServiceJpaEntity(
             String id,
             String shopId,
-            CatalogService service,
+            String serviceCode,
             Integer price,
             int estimatedMinutes,
             Instant createdAt,
             Instant updatedAt) {
         this.id = id;
         this.shopId = shopId;
-        this.service = service;
+        this.serviceCode = serviceCode;
         this.price = price;
         this.estimatedMinutes = estimatedMinutes;
         this.createdAt = createdAt;
@@ -69,8 +66,8 @@ public class ShopServiceJpaEntity {
         return shopId;
     }
 
-    public CatalogService getService() {
-        return service;
+    public String getServiceCode() {
+        return serviceCode;
     }
 
     public Integer getPrice() {

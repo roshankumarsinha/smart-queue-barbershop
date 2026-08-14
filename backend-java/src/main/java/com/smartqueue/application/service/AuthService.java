@@ -40,6 +40,13 @@ public class AuthService implements LoginUseCase {
             throw new InvalidCredentialsException();
         }
 
+        // A deactivated account looks exactly like a wrong password from outside — no
+        // signal about whether the account exists. Already-issued tokens stay valid
+        // until they expire; this only blocks new sign-ins.
+        if (!user.active()) {
+            throw new InvalidCredentialsException();
+        }
+
         return new AuthenticatedSession(user, tokens.issue(user));
     }
 }

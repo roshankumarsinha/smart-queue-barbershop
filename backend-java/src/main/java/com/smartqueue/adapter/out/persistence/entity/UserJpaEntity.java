@@ -43,6 +43,9 @@ public class UserJpaEntity {
     @Column(name = "shop_id")
     private String shopId;
 
+    @Column(nullable = false)
+    private boolean active;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -63,7 +66,8 @@ public class UserJpaEntity {
             String passwordHash,
             String phone,
             String pinHash,
-            String shopId) {
+            String shopId,
+            boolean active) {
         this.id = id;
         this.role = role;
         this.name = name;
@@ -72,6 +76,7 @@ public class UserJpaEntity {
         this.phone = phone;
         this.pinHash = pinHash;
         this.shopId = shopId;
+        this.active = active;
     }
 
     public String getId() {
@@ -104,5 +109,9 @@ public class UserJpaEntity {
 
     public String getShopId() {
         return shopId;
+    }
+
+    public boolean isActive() {
+        return active;
     }
 }

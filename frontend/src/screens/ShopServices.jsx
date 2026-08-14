@@ -149,7 +149,7 @@ export default function ShopServices() {
 
   return (
     <PageTransition>
-      <DashboardShell roleKey="SUPER_ADMIN">
+      <DashboardShell roleKey="ADMIN">
         {/* Back */}
         <Box
           component={motion.button}

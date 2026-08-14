@@ -2,7 +2,10 @@ package com.smartqueue.application.service;
 
 import com.smartqueue.application.port.in.ManageShopsUseCase;
 import com.smartqueue.application.port.in.command.CreateShopCommand;
+import com.smartqueue.application.port.in.command.UpdateShopCommand;
 import com.smartqueue.application.port.out.ShopRepository;
+import com.smartqueue.application.port.out.UserRepository;
+import com.smartqueue.domain.Role;
 import com.smartqueue.domain.exception.ConflictException;
 import com.smartqueue.domain.exception.NotFoundException;
 import com.smartqueue.domain.model.Shop;
@@ -16,9 +19,11 @@ import java.util.List;
 public class ShopService implements ManageShopsUseCase {
 
     private final ShopRepository shops;
+    private final UserRepository users;
 
-    public ShopService(ShopRepository shops) {
+    public ShopService(ShopRepository shops, UserRepository users) {
         this.shops = shops;
+        this.users = users;
     }
 
     @Override
@@ -57,6 +62,43 @@ public class ShopService implements ManageShopsUseCase {
             throw new ConflictException("A shop with this WhatsApp number already exists");
         }
         return shops.save(shop);
+    }
+
+    /**
+     * Null command fields keep the shop's current value, so a caller can send just the
+     * one field they changed. The WhatsApp uniqueness check only runs when the number
+     * actually changes — otherwise a shop would collide with its own existing row.
+     */
+    @Override
+    @Transactional
+    public Shop update(String shopId, UpdateShopCommand command) {
+        Shop existing = findById(shopId);
+        Shop updated = existing.withProfile(
+                merge(command.ownerId(), existing.ownerId()),
+                merge(command.name(), existing.name()),
+                merge(command.type(), existing.type()),
+                merge(command.whatsappNumber(), existing.whatsappNumber()),
+                merge(command.phone(), existing.phone()),
+                merge(command.address(), existing.address()),
+                merge(command.locationUrl(), existing.locationUrl()),
+                merge(command.openingTime(), existing.openingTime()),
+                merge(command.closingTime(), existing.closingTime()));
+
+        if (!updated.ownerId().equals(existing.ownerId())) {
+            // Without this the reassignment would fail as a raw FK violation (500).
+            users.findByIdAndRole(updated.ownerId(), Role.SHOP_OWNER)
+                    .orElseThrow(() -> new NotFoundException("Owner not found"));
+        }
+        if (updated.whatsappNumber() != null
+                && !updated.whatsappNumber().equals(existing.whatsappNumber())
+                && shops.existsByWhatsappNumber(updated.whatsappNumber())) {
+            throw new ConflictException("A shop with this WhatsApp number already exists");
+        }
+        return shops.save(updated);
+    }
+
+    private static <T> T merge(T incoming, T current) {
+        return incoming != null ? incoming : current;
     }
 
     @Override

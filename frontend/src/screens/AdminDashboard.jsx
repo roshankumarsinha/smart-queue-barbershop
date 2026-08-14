@@ -197,7 +197,7 @@ export default function AdminDashboard() {
 
   return (
     <PageTransition>
-      <DashboardShell roleKey="SUPER_ADMIN">
+      <DashboardShell roleKey="ADMIN">
         {/* Header row: count + register CTA */}
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5, gap: 1 }}>
           <Typography

@@ -9,9 +9,7 @@ import com.smartqueue.application.port.in.ManageServicesUseCase;
 import com.smartqueue.application.port.in.ManageShopsUseCase;
 import com.smartqueue.application.port.in.command.AddServiceCommand;
 import com.smartqueue.application.port.in.command.UpdateServiceCommand;
-import com.smartqueue.domain.CatalogService;
 import com.smartqueue.domain.Role;
-import com.smartqueue.domain.exception.ValidationException;
 import com.smartqueue.domain.model.Shop;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -34,15 +32,16 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * The services a shop offers. Managed by SUPER_ADMIN or the shop's own owner — the
- * role guard proves the caller is one of those, {@link #requireCanManage} proves they
- * own <em>this</em> shop.
+ * The services a shop offers. For v1, only ADMIN can create/update/remove a
+ * service — the shop's own owner can view but not edit. The class-level role guard
+ * covers viewing; the mutating methods carry their own stricter {@code @PreAuthorize}.
+ * {@link #requireCanManage} separately proves a non-admin caller owns <em>this</em> shop.
  */
 @RestController
 @RequestMapping("/shops/{shopId}/services")
 @Tag(name = "Services", description = "Services a shop offers")
 @SecurityRequirement(name = "bearerAuth")
-@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SHOP_OWNER')")
+@PreAuthorize("hasAnyRole('ADMIN', 'SHOP_OWNER')")
 public class ShopServiceController {
 
     private final ManageShopsUseCase shops;
@@ -63,6 +62,7 @@ public class ShopServiceController {
 
     @Operation(summary = "List services this shop can still add", description = "The catalog for its type minus what it already offers.")
     @GetMapping("/available")
+    @PreAuthorize("hasRole('ADMIN')")
     public List<CatalogItemResponse> available(
             @PathVariable String shopId, @AuthenticationPrincipal AuthenticatedUser caller) {
         Shop shop = requireCanManage(shopId, caller);
@@ -72,19 +72,19 @@ public class ShopServiceController {
     @Operation(summary = "Add a service to a shop")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasRole('ADMIN')")
     public ShopServiceResponse add(
             @PathVariable String shopId,
             @Valid @RequestBody AddServiceRequest request,
             @AuthenticationPrincipal AuthenticatedUser caller) {
         Shop shop = requireCanManage(shopId, caller);
-        CatalogService service = CatalogService.parse(request.service())
-                .orElseThrow(() -> new ValidationException("Unknown service '" + request.service() + "'"));
         return ShopServiceResponse.from(services.add(
-                shop, new AddServiceCommand(service, request.price(), request.estimatedMinutes())));
+                shop, new AddServiceCommand(request.service(), request.price(), request.estimatedMinutes())));
     }
 
     @Operation(summary = "Update a service's price / estimated time")
     @PatchMapping("/{serviceId}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ShopServiceResponse update(
             @PathVariable String shopId,
             @PathVariable String serviceId,
@@ -98,6 +98,7 @@ public class ShopServiceController {
     @Operation(summary = "Remove a service from a shop")
     @DeleteMapping("/{serviceId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('ADMIN')")
     public void remove(
             @PathVariable String shopId,
             @PathVariable String serviceId,
@@ -109,7 +110,7 @@ public class ShopServiceController {
     /** Loads the shop and proves the caller is the admin or this shop's owner. Returns it for reuse. */
     private Shop requireCanManage(String shopId, AuthenticatedUser caller) {
         Shop shop = shops.findById(shopId);
-        if (caller.role() != Role.SUPER_ADMIN && !caller.userId().equals(shop.ownerId())) {
+        if (caller.role() != Role.ADMIN && !caller.userId().equals(shop.ownerId())) {
             throw new AccessDeniedException("Not this shop's owner");
         }
         return shop;

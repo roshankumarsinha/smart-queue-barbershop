@@ -4,9 +4,11 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 
 /**
- * Add a service to a shop. {@code service} is a {@link com.smartqueue.domain.CatalogService}
- * code (e.g. "HAIRCUT"). Whether {@code estimatedMinutes}/{@code price} are required is a
- * per-shop-type rule enforced in the service layer, so it isn't @NotNull here.
+ * Add a service to a shop. {@code service} is a {@code service_catalog.code} (e.g.
+ * "HAIRCUT") — the catalog is data, so the code is validated against the table in the
+ * service layer rather than by binding to an enum here. Whether
+ * {@code estimatedMinutes}/{@code price} are required is a per-shop-type rule, also
+ * enforced in the service layer.
  */
 public record AddServiceRequest(
         @NotBlank String service,

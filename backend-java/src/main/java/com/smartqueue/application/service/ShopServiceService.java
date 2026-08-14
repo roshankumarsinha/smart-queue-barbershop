@@ -3,6 +3,7 @@ package com.smartqueue.application.service;
 import com.smartqueue.application.port.in.ManageServicesUseCase;
 import com.smartqueue.application.port.in.command.AddServiceCommand;
 import com.smartqueue.application.port.in.command.UpdateServiceCommand;
+import com.smartqueue.application.port.out.ServiceCatalogRepository;
 import com.smartqueue.application.port.out.ShopServiceRepository;
 import com.smartqueue.domain.CatalogService;
 import com.smartqueue.domain.ServiceRules;
@@ -23,9 +24,11 @@ import java.util.stream.Collectors;
 public class ShopServiceService implements ManageServicesUseCase {
 
     private final ShopServiceRepository services;
+    private final ServiceCatalogRepository catalog;
 
-    public ShopServiceService(ShopServiceRepository services) {
+    public ShopServiceService(ShopServiceRepository services, ServiceCatalogRepository catalog) {
         this.services = services;
+        this.catalog = catalog;
     }
 
     @Override
@@ -35,25 +38,25 @@ public class ShopServiceService implements ManageServicesUseCase {
 
     @Override
     public List<CatalogService> availableFor(Shop shop) {
-        Set<CatalogService> taken = services.findByShopId(shop.id()).stream()
-                .map(ShopService::service)
+        Set<String> taken = services.findByShopId(shop.id()).stream()
+                .map(s -> s.service().code())
                 .collect(Collectors.toSet());
-        return CatalogService.forType(shop.type()).stream()
-                .filter(item -> !taken.contains(item))
+        return catalog.findByShopType(shop.type()).stream()
+                .filter(item -> !taken.contains(item.code()))
                 .toList();
     }
 
     @Override
     @Transactional
     public ShopService add(Shop shop, AddServiceCommand command) {
-        requireOfferedByType(shop, command.service());
+        CatalogService service = requireOfferedByType(shop, command.serviceCode());
         int estimatedMinutes = validatedFields(shop, command.price(), command.estimatedMinutes());
 
-        if (services.existsByShopIdAndService(shop.id(), command.service())) {
-            throw new ConflictException("This shop already offers " + command.service().label());
+        if (services.existsByShopIdAndService(shop.id(), service.code())) {
+            throw new ConflictException("This shop already offers " + service.label());
         }
         return services.save(
-                ShopService.adding(shop.id(), command.service(), command.price(), estimatedMinutes));
+                ShopService.adding(shop.id(), service, command.price(), estimatedMinutes));
     }
 
     @Override
@@ -71,12 +74,20 @@ public class ShopServiceService implements ManageServicesUseCase {
         services.deleteById(existing.id());
     }
 
-    /** The chosen service must belong to this shop's type (a restaurant can't add a haircut). */
-    private static void requireOfferedByType(Shop shop, CatalogService service) {
-        if (service == null || service.shopType() != shop.type()) {
-            throw new ValidationException("That service isn't offered by a "
-                    + shop.type().name().toLowerCase() + " shop");
-        }
+    /**
+     * Resolves a catalog code and proves the service belongs to this shop's type (a
+     * restaurant can't add a haircut). An unknown code and a wrong-vertical code give
+     * the same message on purpose — both mean "not something you can add here".
+     *
+     * <p>A retired ({@code active = false}) entry is refused too: existing shops keep
+     * the service they already had, but nobody can newly add it.
+     */
+    private CatalogService requireOfferedByType(Shop shop, String serviceCode) {
+        return catalog.findByCode(serviceCode)
+                .filter(CatalogService::active)
+                .filter(service -> service.shopType() == shop.type())
+                .orElseThrow(() -> new ValidationException("That service isn't offered by a "
+                        + shop.type().name().toLowerCase() + " shop"));
     }
 
     /** Applies the shop type's mandatory-field rules and returns the validated estimated time. */

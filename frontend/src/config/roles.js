@@ -37,10 +37,10 @@ export const ROLES = {
       'Skip the current customer',
     ],
   },
-  SUPER_ADMIN: {
-    key: 'SUPER_ADMIN',
+  ADMIN: {
+    key: 'ADMIN',
     tabLabel: 'Admin',
-    title: 'Super Admin',
+    title: 'Admin',
     path: '/admin',
     authMethod: 'email',
     permissions: [
@@ -59,7 +59,7 @@ export const ROLES = {
 };
 
 // Order the login tabs appear in.
-export const LOGIN_ROLE_ORDER = ['SHOP_OWNER', 'BARBER_STAFF', 'SUPER_ADMIN'];
+export const LOGIN_ROLE_ORDER = ['SHOP_OWNER', 'BARBER_STAFF', 'ADMIN'];
 
 // Map a dashboard path back to its role (used by ProtectedRoute).
 export const ROLE_BY_PATH = Object.fromEntries(

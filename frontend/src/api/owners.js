@@ -1,6 +1,6 @@
 import { api } from './client';
 
-// Shop-owner administration — SUPER_ADMIN only (the backend enforces the role).
+// Shop-owner administration — ADMIN only (the backend enforces the role).
 // Java backend serves these at the root: /owners, /owners/:id, /owners/:id/shops.
 
 export const getOwners = (token) => api.get('/owners', { token });

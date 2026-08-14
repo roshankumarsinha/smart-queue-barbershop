@@ -108,7 +108,7 @@ Open **http://localhost:5173** and sign in with any seeded account (identical on
 | --- | --- |
 | Shop owner | `owner@shop.com` / `secret123` |
 | Barber | phone `9876543210` / PIN `1234` |
-| Super admin | `admin@smartqueue.app` / `admin123` |
+| Admin | `admin@smartqueue.app` / `admin123` |
 
 Demo shop id: `demo-shop`. Once logged in, the dashboard polls the live queue and the staff
 actions (Next Customer / Add Walk-in / Skip / No-show) work against whichever backend is
@@ -119,11 +119,11 @@ Quick backend smoke test from the terminal (adjust the base URL for your backend
 ```bash
 # NestJS:
 curl -X POST http://localhost:3000/api/auth/login -H 'Content-Type: application/json' \
-  -d '{"roleKey":"SUPER_ADMIN","email":"admin@smartqueue.app","password":"admin123"}'
+  -d '{"roleKey":"ADMIN","email":"admin@smartqueue.app","password":"admin123"}'
 
 # Java:
 curl -X POST http://localhost:3000/auth/login -H 'Content-Type: application/json' \
-  -d '{"roleKey":"SUPER_ADMIN","email":"admin@smartqueue.app","password":"admin123"}'
+  -d '{"roleKey":"ADMIN","email":"admin@smartqueue.app","password":"admin123"}'
 ```
 
 Both return `{ user, role, token }`.

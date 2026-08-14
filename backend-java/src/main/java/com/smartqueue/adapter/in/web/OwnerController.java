@@ -24,12 +24,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/** Shop-owner onboarding. Every route here is SUPER_ADMIN-only (see SecurityConfig + @PreAuthorize). */
+/** Shop-owner onboarding. Every route here is ADMIN-only (see SecurityConfig + @PreAuthorize). */
 @RestController
 @RequestMapping("/owners")
 @Tag(name = "Owners", description = "Shop owner accounts (admin only)")
 @SecurityRequirement(name = "bearerAuth")
-@PreAuthorize("hasRole('SUPER_ADMIN')")
+@PreAuthorize("hasRole('ADMIN')")
 public class OwnerController {
 
     private final ManageOwnersUseCase owners;
@@ -52,12 +52,28 @@ public class OwnerController {
         return OwnerResponse.from(owners.findById(id));
     }
 
-    @Operation(summary = "Register a shop owner", description = "Requires the SUPER_ADMIN role.")
+    @Operation(summary = "Register a shop owner", description = "Requires the ADMIN role.")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public OwnerResponse create(@Valid @RequestBody CreateOwnerRequest request) {
         return OwnerResponse.from(owners.createOwner(new CreateOwnerCommand(
                 request.name(), request.email(), request.phone(), request.password())));
+    }
+
+    @Operation(
+            summary = "Deactivate a shop owner",
+            description = "Blocks sign-in and closes all their shops. Nothing is deleted — history is kept.")
+    @PostMapping("/{id}/deactivate")
+    public OwnerResponse deactivate(@PathVariable String id) {
+        return OwnerResponse.from(owners.deactivate(id));
+    }
+
+    @Operation(
+            summary = "Reactivate a shop owner",
+            description = "Restores sign-in. Their shops stay closed until reopened individually.")
+    @PostMapping("/{id}/activate")
+    public OwnerResponse activate(@PathVariable String id) {
+        return OwnerResponse.from(owners.activate(id));
     }
 
     // --- Shops under an owner (the admin drill-down) -------------------------------
@@ -69,7 +85,7 @@ public class OwnerController {
         return shops.findByOwner(id).stream().map(ShopResponse::from).toList();
     }
 
-    @Operation(summary = "Register a shop under an owner", description = "Requires the SUPER_ADMIN role.")
+    @Operation(summary = "Register a shop under an owner", description = "Requires the ADMIN role.")
     @PostMapping("/{id}/shops")
     @ResponseStatus(HttpStatus.CREATED)
     public ShopResponse createShop(@PathVariable String id, @Valid @RequestBody CreateShopRequest request) {
