@@ -24,10 +24,15 @@ public interface UserRepository {
     /** All users of a role, oldest first. */
     List<User> findAllByRole(Role role);
 
+    /** A shop's staff of a given role (e.g. its barbers), oldest first. */
+    List<User> findByShopIdAndRole(String shopId, Role role);
+
     /** Email is globally unique across roles, so this check is role-agnostic. */
     boolean existsByEmail(String email);
 
     boolean existsByPhone(String phone);
 
     User save(User user);
+
+    void deleteById(String userId);
 }

@@ -36,6 +36,13 @@ class UserPersistenceAdapter implements UserRepository {
     }
 
     @Override
+    public List<User> findByShopIdAndRole(String shopId, Role role) {
+        return users.findByShopIdAndRoleOrderByCreatedAtAsc(shopId, role).stream()
+                .map(PersistenceMapper::toDomain)
+                .toList();
+    }
+
+    @Override
     public boolean existsByEmail(String email) {
         return email != null && users.existsByEmail(email);
     }
@@ -64,5 +71,10 @@ class UserPersistenceAdapter implements UserRepository {
     @Override
     public User save(User user) {
         return PersistenceMapper.toDomain(users.saveAndFlush(PersistenceMapper.toEntity(user)));
+    }
+
+    @Override
+    public void deleteById(String userId) {
+        users.deleteById(userId);
     }
 }

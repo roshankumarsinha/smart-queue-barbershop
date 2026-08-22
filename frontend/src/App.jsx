@@ -22,6 +22,8 @@ import StaffDashboard from './screens/StaffDashboard';
 import AdminDashboard from './screens/AdminDashboard';
 import OwnerShops from './screens/OwnerShops';
 import ShopServices from './screens/ShopServices';
+import ShopStaff from './screens/ShopStaff';
+import MyShops from './screens/MyShops';
 
 // Single react-query client for the whole app. Real API calls will hang off
 // this once a backend exists (see src/api/client.js).
@@ -82,6 +84,30 @@ function AnimatedRoutes() {
           element={
             <ProtectedRoute allow="ADMIN">
               <ShopServices />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/shops/:shopId/staff"
+          element={
+            <ProtectedRoute allow="ADMIN">
+              <ShopStaff />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/owner/shops"
+          element={
+            <ProtectedRoute allow="SHOP_OWNER">
+              <MyShops />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/owner/shops/:shopId"
+          element={
+            <ProtectedRoute allow="SHOP_OWNER">
+              <ShopStaff />
             </ProtectedRoute>
           }
         />
