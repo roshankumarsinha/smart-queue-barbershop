@@ -4,7 +4,8 @@ import { useSelector } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Box, CircularProgress, IconButton, Snackbar, Typography } from '@mui/material';
-import { ArrowLeft, ArrowRight, Plus, Sparkles, Trash2, Pencil, CheckCircle2, Users } from 'lucide-react';
+import { ArrowRight, Plus, Sparkles, Trash2, Pencil, CheckCircle2, Users } from 'lucide-react';
+import BackButton from '../components/BackButton';
 import DashboardShell from '../components/DashboardShell';
 import PageTransition from '../components/PageTransition';
 import ShimmerButton from '../components/ShimmerButton';
@@ -151,28 +152,10 @@ export default function ShopServices() {
     <PageTransition>
       <DashboardShell roleKey="ADMIN">
         {/* Back */}
-        <Box
-          component={motion.button}
-          type="button"
+        <BackButton
+          label="Back to shops"
           onClick={() => navigate(shop ? `/admin/owners/${shop.ownerId}` : '/admin')}
-          whileHover={{ x: -3 }}
-          whileTap={{ scale: 0.97 }}
-          sx={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 0.5,
-            mb: 2,
-            cursor: 'pointer',
-            color: 'text.secondary',
-            bgcolor: 'transparent',
-            border: 'none',
-            fontWeight: 600,
-            fontSize: 13,
-            '&:hover': { color: 'primary.main' },
-          }}
-        >
-          <ArrowLeft size={16} /> Back to shops
-        </Box>
+        />
 
         {/* Shop banner */}
         {shop && (
