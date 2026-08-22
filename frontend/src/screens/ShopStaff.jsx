@@ -4,28 +4,35 @@ import { useSelector } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Box, CircularProgress, IconButton, Snackbar, Typography } from '@mui/material';
-import { ArrowLeft, ArrowRight, Plus, Sparkles, Trash2, Pencil, CheckCircle2, Users } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Sparkles, UserPlus, Trash2, KeyRound, Phone, Scissors, CheckCircle2 } from 'lucide-react';
 import DashboardShell from '../components/DashboardShell';
 import PageTransition from '../components/PageTransition';
 import ShimmerButton from '../components/ShimmerButton';
-import AddServiceDialog from '../components/AddServiceDialog';
-import EditServiceDialog from '../components/EditServiceDialog';
+import AddStaffDialog from '../components/AddStaffDialog';
+import ResetStaffPinDialog from '../components/ResetStaffPinDialog';
 import { getShop } from '../api/shops';
-import { getShopServices, deleteShopService } from '../api/services';
-import { selectToken } from '../store/authSlice';
+import { getShopStaff, removeShopStaff } from '../api/staff';
+import { selectRole, selectToken } from '../store/authSlice';
 import { getShopType } from '../config/shopTypes';
 import { getStatusStyle } from '../config/shopStatus';
 import { staggerContainer, staggerItem } from '../lib/motion';
 
-function ServiceCard({ shopId, service, justAdded, onEdit }) {
+function initialsOf(name) {
+  return (name || '?').trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('');
+}
+
+// isAdmin gates the delete button — the backend rejects a shop owner's own delete
+// attempt outright, so the UI hides the affordance rather than let them hit a 403.
+// Resetting a PIN, unlike deleting, is open to both ADMIN and the shop's own owner
+// (whoever can reach this screen at all), so onResetPin has no such gate.
+function StaffCard({ staff, shopId, justAdded, isAdmin, onResetPin }) {
   const token = useSelector(selectToken);
   const queryClient = useQueryClient();
 
   const del = useMutation({
-    mutationFn: () => deleteShopService(shopId, service.id, token),
+    mutationFn: () => removeShopStaff(shopId, staff.id, token),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['shop-services', shopId] });
-      queryClient.invalidateQueries({ queryKey: ['shop-services-available', shopId] });
+      queryClient.invalidateQueries({ queryKey: ['shop-staff', shopId] });
     },
   });
 
@@ -53,7 +60,6 @@ function ServiceCard({ shopId, service, justAdded, onEdit }) {
         '&:hover': { boxShadow: '0 16px 30px -14px rgba(0,0,0,0.65)', borderColor: 'rgba(200,155,60,0.4)' },
       }}
     >
-      {/* Estimated-time badge — the figure the queue will use. */}
       <Box
         sx={{
           display: 'grid',
@@ -67,53 +73,56 @@ function ServiceCard({ shopId, service, justAdded, onEdit }) {
           color: 'primary.dark',
         }}
       >
-        <Typography className="font-display" sx={{ fontSize: 18, lineHeight: 1 }}>
-          {service.estimatedMinutes}
-          <Box component="span" sx={{ fontSize: 11 }}>m</Box>
+        <Typography className="font-display" sx={{ fontSize: 17, lineHeight: 1 }}>
+          {initialsOf(staff.name)}
         </Typography>
       </Box>
 
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontWeight: 700 }} noWrap>{service.label}</Typography>
-        <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>
-          {service.price != null ? `₹${service.price}` : 'No price set'} · ~{service.estimatedMinutes} min
+        <Typography sx={{ fontWeight: 700 }} noWrap>{staff.name}</Typography>
+        <Typography sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, fontSize: 12, color: 'text.secondary' }}>
+          <Phone size={12} aria-hidden="true" /> {staff.phone}
         </Typography>
       </Box>
 
-      <Box sx={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-        <IconButton
-          onClick={() => onEdit(service)}
-          disabled={del.isPending}
-          aria-label={`Edit ${service.label}`}
-          size="small"
-          component={motion.button}
-          whileTap={{ scale: 0.85 }}
-          sx={{ color: 'text.secondary', '&:hover': { color: 'primary.dark', bgcolor: 'transparent' } }}
-        >
-          <Pencil size={16} />
-        </IconButton>
+      <IconButton
+        onClick={onResetPin}
+        aria-label={`Reset PIN for ${staff.name}`}
+        size="small"
+        component={motion.button}
+        whileTap={{ scale: 0.85 }}
+        sx={{ color: 'text.secondary', flexShrink: 0, '&:hover': { color: 'primary.dark', bgcolor: 'transparent' } }}
+      >
+        <KeyRound size={16} />
+      </IconButton>
+
+      {isAdmin && (
         <IconButton
           onClick={() => del.mutate()}
           disabled={del.isPending}
-          aria-label={`Remove ${service.label}`}
+          aria-label={`Remove ${staff.name}`}
           size="small"
           component={motion.button}
           whileTap={{ scale: 0.85 }}
-          sx={{ color: 'text.secondary', '&:hover': { color: 'secondary.main', bgcolor: 'transparent' } }}
+          sx={{ color: 'text.secondary', flexShrink: 0, '&:hover': { color: 'secondary.main', bgcolor: 'transparent' } }}
         >
           <Trash2 size={17} />
         </IconButton>
-      </Box>
+      )}
     </Box>
   );
 }
 
-export default function ShopServices() {
+// Shared by both /admin/shops/:shopId/staff and /owner/shops/:shopId — the API
+// already scopes what a caller can see/do, so the same screen works for either
+// role. Only the DashboardShell role label and the back-button destination differ.
+export default function ShopStaff() {
   const { shopId } = useParams();
   const token = useSelector(selectToken);
+  const role = useSelector(selectRole);
   const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState(null);
+  const [resettingPin, setResettingPin] = useState(null);
   const [justAddedId, setJustAddedId] = useState(null);
   const [toast, setToast] = useState('');
 
@@ -122,39 +131,44 @@ export default function ShopServices() {
     queryFn: () => getShop(shopId, token),
     enabled: !!token && !!shopId,
   });
-  const servicesQuery = useQuery({
-    queryKey: ['shop-services', shopId],
-    queryFn: () => getShopServices(shopId, token),
+  const staffQuery = useQuery({
+    queryKey: ['shop-staff', shopId],
+    queryFn: () => getShopStaff(shopId, token),
     enabled: !!token && !!shopId,
   });
 
   const shop = shopQuery.data;
-  const services = servicesQuery.data ?? [];
-  const hasServices = services.length > 0;
+  const staffList = staffQuery.data ?? [];
+  const hasStaff = staffList.length > 0;
   const meta = shop ? getShopType(shop.type) : null;
-  const TypeIcon = meta?.icon ?? Sparkles;
+  const TypeIcon = meta?.icon ?? Scissors;
   const st = shop ? getStatusStyle(shop.status) : null;
 
-  function handleCreated(service) {
-    setJustAddedId(service.id);
-    setToast(`${service.label} added`);
+  function goBack() {
+    if (role === 'ADMIN') {
+      navigate(shop ? `/admin/owners/${shop.ownerId}` : '/admin');
+    } else {
+      navigate('/owner/shops');
+    }
+  }
+
+  function handleCreated(staff) {
+    setJustAddedId(staff.id);
+    setToast(`${staff.name} registered`);
     setTimeout(() => setJustAddedId(null), 2600);
   }
 
-  function handleSaved(service) {
-    setJustAddedId(service.id);
-    setToast(`${service.label} updated`);
-    setTimeout(() => setJustAddedId(null), 2600);
+  function handlePinSaved(staff) {
+    setToast(`PIN reset for ${staff.name}`);
   }
 
   return (
     <PageTransition>
-      <DashboardShell roleKey="ADMIN">
-        {/* Back */}
+      <DashboardShell roleKey={role ?? 'ADMIN'}>
         <Box
           component={motion.button}
           type="button"
-          onClick={() => navigate(shop ? `/admin/owners/${shop.ownerId}` : '/admin')}
+          onClick={goBack}
           whileHover={{ x: -3 }}
           whileTap={{ scale: 0.97 }}
           sx={{
@@ -171,10 +185,9 @@ export default function ShopServices() {
             '&:hover': { color: 'primary.main' },
           }}
         >
-          <ArrowLeft size={16} /> Back to shops
+          <ArrowLeft size={16} /> {role === 'ADMIN' ? 'Back to shops' : 'My shops'}
         </Box>
 
-        {/* Shop banner */}
         {shop && (
           <Box
             component={motion.div}
@@ -215,11 +228,11 @@ export default function ShopServices() {
           </Box>
         )}
 
-        {shop && (
+        {shop && role === 'ADMIN' && (
           <Box
             component={motion.button}
             type="button"
-            onClick={() => navigate(`/admin/shops/${shopId}/staff`)}
+            onClick={() => navigate(`/admin/shops/${shopId}`)}
             whileHover={{ x: 3 }}
             whileTap={{ scale: 0.97 }}
             sx={{
@@ -236,34 +249,33 @@ export default function ShopServices() {
               '&:hover': { color: 'primary.main' },
             }}
           >
-            <Users size={14} /> Manage staff <ArrowRight size={14} />
+            <Sparkles size={14} /> Manage services <ArrowRight size={14} />
           </Box>
         )}
 
-        {/* Section header + add */}
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5, gap: 1 }}>
           <Typography
             className="font-signage"
             sx={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.18em', color: 'text.secondary' }}
           >
-            Services · {services.length}
+            Staff · {staffList.length}
           </Typography>
-          {hasServices && (
+          {hasStaff && (
             <ShimmerButton onClick={() => setDialogOpen(true)} className="!px-4 !py-2.5 text-[13px]">
-              <Plus size={16} /> Add Service
+              <UserPlus size={16} /> Register Staff
             </ShimmerButton>
           )}
         </Box>
 
         {shopQuery.isError ? (
           <Typography sx={{ color: 'error.main', py: 2 }}>
-            Couldn’t load this shop: {shopQuery.error?.message ?? 'unknown error'}
+            Couldn't load this shop: {shopQuery.error?.message ?? 'unknown error'}
           </Typography>
-        ) : servicesQuery.isPending || shopQuery.isPending ? (
+        ) : staffQuery.isPending || shopQuery.isPending ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}>
             <CircularProgress size={24} sx={{ color: 'primary.main' }} />
           </Box>
-        ) : !hasServices ? (
+        ) : !hasStaff ? (
           <Box
             component={motion.div}
             initial={{ opacity: 0, y: 10 }}
@@ -288,17 +300,17 @@ export default function ShopServices() {
                 color: 'primary.main',
               }}
             >
-              <Sparkles size={30} aria-hidden="true" />
+              <UserPlus size={30} aria-hidden="true" />
             </Box>
             <Typography className="font-display" sx={{ fontSize: 26, color: '#F3ECDF', lineHeight: 1.1 }}>
-              No services yet
+              No staff yet
             </Typography>
             <Typography sx={{ mt: 0.5, mb: 2.5, fontSize: 14, color: 'text.secondary' }}>
-              Add the services this {meta?.label?.toLowerCase() ?? 'shop'} offers — their time drives the queue.
+              Register the barbers working at {shop?.name ?? 'this shop'}.
             </Typography>
             <Box sx={{ display: 'flex', justifyContent: 'center' }}>
               <ShimmerButton onClick={() => setDialogOpen(true)} className="text-[15px]">
-                <Plus size={18} /> Add a Service
+                <UserPlus size={18} /> Register Staff
               </ShimmerButton>
             </Box>
           </Box>
@@ -311,13 +323,14 @@ export default function ShopServices() {
             sx={{ display: 'flex', flexDirection: 'column', gap: 1.25, mb: 3 }}
           >
             <AnimatePresence initial={false}>
-              {services.map((service) => (
-                <ServiceCard
-                  key={service.id}
+              {staffList.map((staff) => (
+                <StaffCard
+                  key={staff.id}
+                  staff={staff}
                   shopId={shopId}
-                  service={service}
-                  justAdded={service.id === justAddedId}
-                  onEdit={setEditing}
+                  isAdmin={role === 'ADMIN'}
+                  justAdded={staff.id === justAddedId}
+                  onResetPin={() => setResettingPin(staff)}
                 />
               ))}
             </AnimatePresence>
@@ -325,23 +338,21 @@ export default function ShopServices() {
         )}
 
         {shop && (
-          <AddServiceDialog
+          <AddStaffDialog
             open={dialogOpen}
             onClose={() => setDialogOpen(false)}
             shopId={shopId}
-            shopType={shop.type}
             shopName={shop.name}
             onCreated={handleCreated}
           />
         )}
 
-        <EditServiceDialog
-          open={!!editing}
-          service={editing}
+        <ResetStaffPinDialog
+          open={!!resettingPin}
+          staff={resettingPin}
           shopId={shopId}
-          shopType={shop?.type}
-          onClose={() => setEditing(null)}
-          onSaved={handleSaved}
+          onClose={() => setResettingPin(null)}
+          onSaved={handlePinSaved}
         />
 
         <Snackbar

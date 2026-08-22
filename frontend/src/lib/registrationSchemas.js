@@ -40,3 +40,15 @@ export const shopSchema = z.object({
   openingTime: z.string(),
   closingTime: z.string(),
 });
+
+// Staff sign in with this exact phone + PIN (see BarberLoginScreen's phoneSchema),
+// so — unlike whatsappNumber/phone above — no +91 prefix is accepted here: what's
+// typed at registration must be byte-for-byte what's typed at login.
+export const staffSchema = z.object({
+  name: z.string().trim().min(2, 'Name is required'),
+  phone: z
+    .string()
+    .trim()
+    .regex(/^\d{10}$/, 'Enter a 10-digit phone number'),
+  pin: z.string().regex(/^\d{4}$/, 'PIN must be 4 digits'),
+});

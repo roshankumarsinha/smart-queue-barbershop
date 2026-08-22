@@ -60,6 +60,18 @@ public class ShopController {
     }
 
     /**
+     * An owner's own shop list, self-service — unlike {@code GET /owners/{id}/shops},
+     * which is the ADMIN-only drill-down and requires already knowing the owner's id.
+     * Open and closed alike, so an owner can still reach a closed shop to reopen it.
+     */
+    @Operation(summary = "List my shops", description = "Every shop owned by the signed-in SHOP_OWNER.")
+    @GetMapping("/mine")
+    @PreAuthorize("hasRole('SHOP_OWNER')")
+    public List<ShopResponse> mine(@AuthenticationPrincipal AuthenticatedUser caller) {
+        return shops.findByOwner(caller.userId()).stream().map(ShopResponse::from).toList();
+    }
+
+    /**
      * Partial update: omitted fields keep their current value. Reassigning the shop to a
      * different owner is admin-only — an owner must not be able to hand their own shop
      * (and its queue history) to someone else.
