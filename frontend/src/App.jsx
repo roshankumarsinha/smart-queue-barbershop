@@ -21,6 +21,7 @@ import OwnerDashboard from './screens/OwnerDashboard';
 import StaffDashboard from './screens/StaffDashboard';
 import AdminDashboard from './screens/AdminDashboard';
 import OwnerShops from './screens/OwnerShops';
+import OwnerStats from './screens/OwnerStats';
 import ShopServices from './screens/ShopServices';
 import ShopStaff from './screens/ShopStaff';
 import MyShops from './screens/MyShops';
@@ -100,6 +101,14 @@ function AnimatedRoutes() {
           element={
             <ProtectedRoute allow="SHOP_OWNER">
               <MyShops />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/owner/stats"
+          element={
+            <ProtectedRoute allow="SHOP_OWNER">
+              <OwnerStats />
             </ProtectedRoute>
           }
         />

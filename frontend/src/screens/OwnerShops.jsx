@@ -4,7 +4,8 @@ import { useSelector } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Box, CircularProgress, Snackbar, Typography } from '@mui/material';
-import { ArrowLeft, Store, Plus, MapPin, MessageCircle, Clock, CheckCircle2, Mail, ChevronRight, Sparkles } from 'lucide-react';
+import { Store, Plus, MapPin, MessageCircle, Clock, CheckCircle2, Mail, ChevronRight, Sparkles } from 'lucide-react';
+import BackButton from '../components/BackButton';
 import DashboardShell from '../components/DashboardShell';
 import PageTransition from '../components/PageTransition';
 import ShimmerButton from '../components/ShimmerButton';
@@ -236,28 +237,7 @@ export default function OwnerShops() {
     <PageTransition>
       <DashboardShell roleKey="ADMIN">
         {/* Back */}
-        <Box
-          component={motion.button}
-          type="button"
-          onClick={() => navigate('/admin')}
-          whileHover={{ x: -3 }}
-          whileTap={{ scale: 0.97 }}
-          sx={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 0.5,
-            mb: 2,
-            cursor: 'pointer',
-            color: 'text.secondary',
-            bgcolor: 'transparent',
-            border: 'none',
-            fontWeight: 600,
-            fontSize: 13,
-            '&:hover': { color: 'primary.main' },
-          }}
-        >
-          <ArrowLeft size={16} /> All owners
-        </Box>
+        <BackButton label="All owners" onClick={() => navigate('/admin')} />
 
         {/* Owner banner */}
         {owner && (

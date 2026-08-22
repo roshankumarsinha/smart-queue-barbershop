@@ -4,7 +4,8 @@ import { useSelector } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Box, CircularProgress, IconButton, Snackbar, Typography } from '@mui/material';
-import { ArrowLeft, ArrowRight, Sparkles, UserPlus, Trash2, KeyRound, Phone, Scissors, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, Sparkles, UserPlus, Trash2, KeyRound, Phone, Scissors, CheckCircle2 } from 'lucide-react';
+import BackButton from '../components/BackButton';
 import DashboardShell from '../components/DashboardShell';
 import PageTransition from '../components/PageTransition';
 import ShimmerButton from '../components/ShimmerButton';
@@ -165,28 +166,10 @@ export default function ShopStaff() {
   return (
     <PageTransition>
       <DashboardShell roleKey={role ?? 'ADMIN'}>
-        <Box
-          component={motion.button}
-          type="button"
+        <BackButton
+          label={role === 'ADMIN' ? 'Back to shops' : 'My shops'}
           onClick={goBack}
-          whileHover={{ x: -3 }}
-          whileTap={{ scale: 0.97 }}
-          sx={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 0.5,
-            mb: 2,
-            cursor: 'pointer',
-            color: 'text.secondary',
-            bgcolor: 'transparent',
-            border: 'none',
-            fontWeight: 600,
-            fontSize: 13,
-            '&:hover': { color: 'primary.main' },
-          }}
-        >
-          <ArrowLeft size={16} /> {role === 'ADMIN' ? 'Back to shops' : 'My shops'}
-        </Box>
+        />
 
         {shop && (
           <Box

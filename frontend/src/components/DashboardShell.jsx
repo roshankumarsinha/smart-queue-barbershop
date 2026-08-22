@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
@@ -16,6 +17,10 @@ import { logout, selectUser } from '../store/authSlice';
 import { getRole } from '../config/roles';
 import { staggerContainer, staggerItem } from '../lib/motion';
 import BarberPole from './BarberPole';
+
+// three.js is heavy, so the revolving barber is code-split and only pulled in
+// once a dashboard mounts (never on the login bundle).
+const BarberFigure3D = lazy(() => import('./BarberFigure3D'));
 
 // A stat card (used on Owner/Admin dashboards). MUI Card, staggered in, with a
 // brass lift on hover.
@@ -141,27 +146,53 @@ export default function DashboardShell({ roleKey, children }) {
       </Box>
 
       <Box component="main" className="mx-auto w-full max-w-md flex-1" sx={{ px: 2.5, pb: 5 }}>
-        <Typography
-          className="font-signage"
-          sx={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.25em', color: 'text.secondary' }}
+        {/* Identity row: role text on the left, the revolving barber on the right. */}
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 1,
+            mb: 3,
+          }}
         >
-          Logged in as
-        </Typography>
-        <Typography
-          component={motion.h1}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, ease: 'easeOut' }}
-          className="font-display"
-          sx={{ mb: 0.5, fontSize: 46, lineHeight: 1, letterSpacing: '0.02em', color: 'primary.main' }}
-        >
-          {role.title}
-        </Typography>
-        {user?.identifier && (
-          <Typography sx={{ mb: 3, fontSize: 14, color: 'text.secondary' }}>
-            {user.identifier}
-          </Typography>
-        )}
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Typography
+              className="font-signage"
+              sx={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.25em', color: 'text.secondary' }}
+            >
+              Logged in as
+            </Typography>
+            <Typography
+              component={motion.h1}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, ease: 'easeOut' }}
+              className="font-display"
+              sx={{ mb: 0.5, fontSize: 46, lineHeight: 1, letterSpacing: '0.02em', color: 'primary.main' }}
+            >
+              {role.title}
+            </Typography>
+            {user?.identifier && (
+              <Typography sx={{ fontSize: 14, color: 'text.secondary' }} noWrap>
+                {user.identifier}
+              </Typography>
+            )}
+          </Box>
+
+          {/* Revolving 3D barber. Fades in once three.js has loaded. */}
+          <Box
+            component={motion.div}
+            initial={{ opacity: 0, scale: 0.85 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, ease: 'easeOut', delay: 0.15 }}
+            sx={{ width: 128, height: 148, flexShrink: 0 }}
+          >
+            <Suspense fallback={null}>
+              <BarberFigure3D className="h-full w-full" />
+            </Suspense>
+          </Box>
+        </Box>
 
         {children}
       </Box>

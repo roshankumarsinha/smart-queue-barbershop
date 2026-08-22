@@ -3,7 +3,8 @@ import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Box, CircularProgress, Typography } from '@mui/material';
-import { ArrowLeft, Store, MapPin, MessageCircle, Clock, ChevronRight, Users } from 'lucide-react';
+import { Store, MapPin, MessageCircle, Clock, ChevronRight, Users } from 'lucide-react';
+import BackButton from '../components/BackButton';
 import DashboardShell from '../components/DashboardShell';
 import PageTransition from '../components/PageTransition';
 import { getMyShops } from '../api/shops';
@@ -162,28 +163,7 @@ export default function MyShops() {
   return (
     <PageTransition>
       <DashboardShell roleKey="SHOP_OWNER">
-        <Box
-          component={motion.button}
-          type="button"
-          onClick={() => navigate('/owner')}
-          whileHover={{ x: -3 }}
-          whileTap={{ scale: 0.97 }}
-          sx={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 0.5,
-            mb: 2,
-            cursor: 'pointer',
-            color: 'text.secondary',
-            bgcolor: 'transparent',
-            border: 'none',
-            fontWeight: 600,
-            fontSize: 13,
-            '&:hover': { color: 'primary.main' },
-          }}
-        >
-          <ArrowLeft size={16} /> Back to dashboard
-        </Box>
+        <BackButton label="Back to dashboard" onClick={() => navigate('/owner')} />
 
         <Typography
           className="font-signage"
