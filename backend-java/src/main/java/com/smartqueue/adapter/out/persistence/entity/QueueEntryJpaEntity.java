@@ -55,6 +55,10 @@ public class QueueEntryJpaEntity {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    /** The barber (user id) who claimed this entry into their chair, if any. */
+    @Column(name = "served_by")
+    private String servedBy;
+
     protected QueueEntryJpaEntity() {
         // for JPA
     }
@@ -69,7 +73,8 @@ public class QueueEntryJpaEntity {
             QueueStatus status,
             int position,
             Instant joinedAt,
-            Instant updatedAt) {
+            Instant updatedAt,
+            String servedBy) {
         this.id = id;
         this.shopId = shopId;
         this.token = token;
@@ -80,6 +85,7 @@ public class QueueEntryJpaEntity {
         this.position = position;
         this.joinedAt = joinedAt;
         this.updatedAt = updatedAt;
+        this.servedBy = servedBy;
     }
 
     public String getId() {
@@ -120,5 +126,9 @@ public class QueueEntryJpaEntity {
 
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+
+    public String getServedBy() {
+        return servedBy;
     }
 }

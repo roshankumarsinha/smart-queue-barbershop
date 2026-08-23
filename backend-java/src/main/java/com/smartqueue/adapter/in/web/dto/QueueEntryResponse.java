@@ -16,7 +16,8 @@ public record QueueEntryResponse(
         QueueStatus status,
         int position,
         Instant joinedAt,
-        Instant updatedAt) {
+        Instant updatedAt,
+        String servedBy) {
 
     /** Null-tolerant: an empty chair or an empty queue serialises as JSON null. */
     public static QueueEntryResponse from(QueueEntry e) {
@@ -33,6 +34,7 @@ public record QueueEntryResponse(
                 e.status(),
                 e.position(),
                 e.joinedAt(),
-                e.updatedAt());
+                e.updatedAt(),
+                e.servedBy());
     }
 }

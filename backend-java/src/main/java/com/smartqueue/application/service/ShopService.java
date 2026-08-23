@@ -9,6 +9,7 @@ import com.smartqueue.domain.Role;
 import com.smartqueue.domain.exception.ConflictException;
 import com.smartqueue.domain.exception.NotFoundException;
 import com.smartqueue.domain.model.Shop;
+import com.smartqueue.domain.model.User;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -111,5 +112,13 @@ public class ShopService implements ManageShopsUseCase {
     @Transactional
     public Shop open(String shopId) {
         return shops.save(findById(shopId).opened());
+    }
+
+    @Override
+    public int onDutyChairCount(String shopId) {
+        Shop shop = findById(shopId);
+        int barbers = users.findByShopIdAndRoleAndOnDutyTrue(shopId, Role.BARBER_STAFF).size();
+        boolean ownerOnDuty = users.findById(shop.ownerId()).map(User::onDuty).orElse(false);
+        return barbers + (ownerOnDuty ? 1 : 0);
     }
 }

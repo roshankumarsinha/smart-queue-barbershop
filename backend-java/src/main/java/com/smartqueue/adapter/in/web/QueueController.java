@@ -1,5 +1,6 @@
 package com.smartqueue.adapter.in.web;
 
+import com.smartqueue.adapter.in.web.dto.AdvanceQueueRequest;
 import com.smartqueue.adapter.in.web.dto.AdvanceQueueResponse;
 import com.smartqueue.adapter.in.web.dto.EntryIdRequest;
 import com.smartqueue.adapter.in.web.dto.JoinQueueRequest;
@@ -8,21 +9,26 @@ import com.smartqueue.adapter.in.web.dto.NotifyRequest;
 import com.smartqueue.adapter.in.web.dto.QueueEntryResponse;
 import com.smartqueue.adapter.in.web.dto.QueueEntryStatusResponse;
 import com.smartqueue.adapter.in.web.dto.QueueStatusResponse;
-import com.smartqueue.adapter.in.web.dto.ShopIdRequest;
+import com.smartqueue.adapter.in.web.security.AuthenticatedUser;
 import com.smartqueue.application.port.in.AdvanceQueueUseCase;
 import com.smartqueue.application.port.in.GetQueueStatusUseCase;
 import com.smartqueue.application.port.in.JoinQueueUseCase;
+import com.smartqueue.application.port.in.ManageShopsUseCase;
 import com.smartqueue.application.port.in.NotifyCustomerUseCase;
 import com.smartqueue.application.port.in.UpdateQueueEntryUseCase;
 import com.smartqueue.application.port.in.command.JoinQueueCommand;
 import com.smartqueue.application.port.in.command.NotifyCustomerCommand;
+import com.smartqueue.domain.Role;
+import com.smartqueue.domain.model.Shop;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -47,18 +53,21 @@ public class QueueController {
     private final AdvanceQueueUseCase advance;
     private final UpdateQueueEntryUseCase update;
     private final NotifyCustomerUseCase notify;
+    private final ManageShopsUseCase shops;
 
     public QueueController(
             GetQueueStatusUseCase status,
             JoinQueueUseCase join,
             AdvanceQueueUseCase advance,
             UpdateQueueEntryUseCase update,
-            NotifyCustomerUseCase notify) {
+            NotifyCustomerUseCase notify,
+            ManageShopsUseCase shops) {
         this.status = status;
         this.join = join;
         this.advance = advance;
         this.update = update;
         this.notify = notify;
+        this.shops = shops;
     }
 
     // --- Public (customer / WhatsApp side) ------------------------------------
@@ -122,12 +131,17 @@ public class QueueController {
 
     @Operation(
             summary = "Advance the queue",
-            description = "Finishes the customer in the chair and promotes the next one waiting.")
+            description = "Finishes the customer in the caller's own chair and claims a new one into it. Each "
+                    + "on-duty barber operates their own chair — an owner who also works the floor can go on "
+                    + "duty and do the same. Omit token to claim whoever's earliest in line; set it to serve a "
+                    + "specific waiting customer out of turn (e.g. an earlier token hasn't arrived yet).")
     @SecurityRequirement(name = "bearerAuth")
     @PostMapping("/next")
     @PreAuthorize(STAFF)
-    public AdvanceQueueResponse next(@Valid @RequestBody ShopIdRequest request) {
-        return AdvanceQueueResponse.from(advance.advance(request.shopId()));
+    public AdvanceQueueResponse next(
+            @Valid @RequestBody AdvanceQueueRequest request, @AuthenticationPrincipal AuthenticatedUser caller) {
+        requireBelongsToShop(request.shopId(), caller);
+        return AdvanceQueueResponse.from(advance.advance(request.shopId(), caller.userId(), request.token()));
     }
 
     @Operation(summary = "Send a customer to the back of the waiting list")
@@ -154,6 +168,26 @@ public class QueueController {
     public void notifyCustomer(@Valid @RequestBody NotifyRequest request) {
         notify.notifyCustomer(
                 new NotifyCustomerCommand(request.entryId(), request.type(), request.message()));
+    }
+
+    /**
+     * A barber's own shop is trusted straight off the JWT ({@code caller.shopId()}, set from
+     * {@code User.shopId} at login) — a barber only ever belongs to one. An owner's shop
+     * membership is <em>not</em> reliable that way: {@code User.shopId} on an owner's own
+     * account is not authoritative for ownership (an owner can have several shops), so that
+     * case is verified against the shop's actual {@code ownerId} instead.
+     */
+    private void requireBelongsToShop(String shopId, AuthenticatedUser caller) {
+        if (caller.role() == Role.BARBER_STAFF) {
+            if (!shopId.equals(caller.shopId())) {
+                throw new AccessDeniedException("Not this shop's staff");
+            }
+            return;
+        }
+        Shop shop = shops.findById(shopId);
+        if (!caller.userId().equals(shop.ownerId())) {
+            throw new AccessDeniedException("Not this shop's owner");
+        }
     }
 
     private static JoinQueueCommand toCommand(JoinQueueRequest r) {

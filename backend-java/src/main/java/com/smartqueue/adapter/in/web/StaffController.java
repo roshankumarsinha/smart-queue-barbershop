@@ -2,6 +2,7 @@ package com.smartqueue.adapter.in.web;
 
 import com.smartqueue.adapter.in.web.dto.CreateStaffRequest;
 import com.smartqueue.adapter.in.web.dto.StaffResponse;
+import com.smartqueue.adapter.in.web.dto.UpdateStaffDutyRequest;
 import com.smartqueue.adapter.in.web.dto.UpdateStaffPinRequest;
 import com.smartqueue.adapter.in.web.security.AuthenticatedUser;
 import com.smartqueue.application.port.in.ManageShopsUseCase;
@@ -86,6 +87,22 @@ public class StaffController {
         return StaffResponse.from(staff.updatePin(shopId, staffId, new UpdateStaffPinCommand(request.pin())));
     }
 
+    @Operation(
+            summary = "Mark a barber — or this shop's own owner — on/off duty",
+            description = "Each on-duty person is one concurrent chair; an owner who also works the floor can go "
+                    + "on duty just like a barber. Requires ADMIN, the SHOP_OWNER of this shop (managing a "
+                    + "barber, or toggling their own duty status), or a barber acting on their own account.")
+    @PatchMapping("/{staffId}/duty")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SHOP_OWNER', 'BARBER_STAFF')")
+    public StaffResponse setDuty(
+            @PathVariable String shopId,
+            @PathVariable String staffId,
+            @Valid @RequestBody UpdateStaffDutyRequest request,
+            @AuthenticationPrincipal AuthenticatedUser caller) {
+        Shop shop = requireCanManageOrSelf(shopId, staffId, caller);
+        return StaffResponse.from(staff.setOnDuty(shop, staffId, request.onDuty()));
+    }
+
     @Operation(summary = "Remove a staff member", description = "Requires the ADMIN role.")
     @DeleteMapping("/{staffId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -101,5 +118,22 @@ public class StaffController {
             throw new AccessDeniedException("Not this shop's owner");
         }
         return shop;
+    }
+
+    /**
+     * {@link #requireCanManage}, plus a barber acting on their own on-duty status. An owner
+     * toggling their own duty status doesn't need a special case here — {@link #requireCanManage}
+     * already passes for them, since they own the shop they're acting on. Always returns the
+     * shop, loading it directly in the barber-self branch since {@code requireCanManage} is
+     * skipped there.
+     */
+    private Shop requireCanManageOrSelf(String shopId, String staffId, AuthenticatedUser caller) {
+        boolean isSelfBarber = caller.role() == Role.BARBER_STAFF
+                && caller.userId().equals(staffId)
+                && shopId.equals(caller.shopId());
+        if (isSelfBarber) {
+            return shops.findById(shopId);
+        }
+        return requireCanManage(shopId, caller);
     }
 }

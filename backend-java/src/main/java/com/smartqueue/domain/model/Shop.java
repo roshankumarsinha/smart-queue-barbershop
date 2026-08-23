@@ -71,8 +71,16 @@ public record Shop(
         return value == null || value.isBlank() ? null : value.trim();
     }
 
-    public int estimatedWaitMinutes(int customersAhead) {
-        return customersAhead * DEFAULT_SERVICE_MINUTES;
+    /**
+     * A chair currently occupied counts as half a customer, not a full one or zero — the
+     * person in it is, on average, about halfway through their service, so it still delays
+     * the next arrival but by less than someone who hasn't been seen yet.
+     * {@code totalChairs} floors at 1 so a temporarily-unstaffed queue still gets a sane estimate.
+     */
+    public int estimatedWaitMinutes(int waitingAhead, int occupiedChairs, int totalChairs) {
+        int chairs = Math.max(totalChairs, 1);
+        double weightedAhead = waitingAhead + 0.5 * occupiedChairs;
+        return (int) Math.ceil(weightedAhead / chairs) * DEFAULT_SERVICE_MINUTES;
     }
 
     /** A shop takes customers only while OPEN — NEW and CLOSED both reject joins. */

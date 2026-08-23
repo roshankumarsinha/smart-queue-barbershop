@@ -16,9 +16,10 @@ public record User(
         String phone,
         String pinHash,
         String shopId,
-        boolean active) {
+        boolean active,
+        boolean onDuty) {
 
-    /** A new account, active by default. */
+    /** A new account, active by default, off duty by default. */
     public User(
             String id,
             Role role,
@@ -28,7 +29,7 @@ public record User(
             String phone,
             String pinHash,
             String shopId) {
-        this(id, role, name, email, passwordHash, phone, pinHash, shopId, true);
+        this(id, role, name, email, passwordHash, phone, pinHash, shopId, true, false);
     }
 
     public User deactivated() {
@@ -39,8 +40,21 @@ public record User(
         return withActive(true);
     }
 
+    /** Meaningful only for {@link Role#BARBER_STAFF} — an on-duty barber is one concurrent chair. */
+    public User onDutyOn() {
+        return withOnDuty(true);
+    }
+
+    public User onDutyOff() {
+        return withOnDuty(false);
+    }
+
     private User withActive(boolean newActive) {
-        return new User(id, role, name, email, passwordHash, phone, pinHash, shopId, newActive);
+        return new User(id, role, name, email, passwordHash, phone, pinHash, shopId, newActive, onDuty);
+    }
+
+    private User withOnDuty(boolean newOnDuty) {
+        return new User(id, role, name, email, passwordHash, phone, pinHash, shopId, active, newOnDuty);
     }
 
     private boolean byEmail() {

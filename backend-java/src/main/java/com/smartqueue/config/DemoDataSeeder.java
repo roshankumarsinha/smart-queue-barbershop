@@ -7,7 +7,6 @@ import com.smartqueue.application.port.out.ShopRepository;
 import com.smartqueue.application.port.out.ShopServiceRepository;
 import com.smartqueue.application.port.out.UserRepository;
 import com.smartqueue.domain.CatalogService;
-import com.smartqueue.domain.QueueStatus;
 import com.smartqueue.domain.Role;
 import com.smartqueue.domain.ServiceType;
 import com.smartqueue.domain.ShopStatus;
@@ -92,12 +91,22 @@ class DemoDataSeeder {
             if (owner.shopId() == null) {
                 users.save(new User(
                         owner.id(), owner.role(), owner.name(), owner.email(),
-                        owner.passwordHash(), owner.phone(), owner.pinHash(), shop.id(), owner.active()));
+                        owner.passwordHash(), owner.phone(), owner.pinHash(), shop.id(),
+                        owner.active(), owner.onDuty()));
             }
 
-            ensureUser(users, Role.BARBER_STAFF, null, "9876543210", () -> new User(
+            // Two barbers so multi-chair queueing has something to demonstrate — the
+            // first is seeded on duty (and is who seedQueue() puts in the chair), the
+            // second starts off duty so "go on duty" has a visible effect.
+            User barber = ensureUser(users, Role.BARBER_STAFF, null, "9876543210", () -> new User(
                     null, Role.BARBER_STAFF, "Barber", null, null,
                     "9876543210", hasher.hash("1234"), shop.id()));
+            if (!barber.onDuty()) {
+                barber = users.save(barber.onDutyOn());
+            }
+            ensureUser(users, Role.BARBER_STAFF, null, "9876543211", () -> new User(
+                    null, Role.BARBER_STAFF, "Second Barber", null, null,
+                    "9876543211", hasher.hash("1234"), shop.id()));
 
             seedServices(shopServices, catalog, shop.id(), List.of(
                     service("HAIRCUT", 250, 20),
@@ -111,12 +120,12 @@ class DemoDataSeeder {
                     service("FACIAL", 700, 40),
                     service("HAIR_SPA", 1200, 50)));
 
-            seedQueue(queueEntries, shop.id());
+            seedQueue(queueEntries, shop.id(), barber.id());
 
             log.info("Seeded demo data — shops: {}, {}, {} (NEW)",
                     shop.name(), uptown.name(), "Riverside Barbers");
             log.info("  Accounts: admin@smartqueue.app (ADMIN), owner@shop.com + priya@salon.com "
-                    + "(SHOP_OWNER), 9876543210 (BARBER_STAFF) — see README for sign-in details");
+                    + "(SHOP_OWNER), 9876543210 + 9876543211 (BARBER_STAFF) — see README for sign-in details");
             log.info("  Admin id {} is available for shop reassignment demos", admin.id());
         };
     }
@@ -127,7 +136,7 @@ class DemoDataSeeder {
      * to answer with. Skipped entirely once the shop has any entry — re-seeding a
      * live queue would collide on the per-shop unique token.
      */
-    private static void seedQueue(QueueEntryRepository queueEntries, String shopId) {
+    private static void seedQueue(QueueEntryRepository queueEntries, String shopId, String onDutyBarberId) {
         if (queueEntries.highestToken(shopId).isPresent()) {
             return;
         }
@@ -148,7 +157,7 @@ class DemoDataSeeder {
             QueueEntry entry = QueueEntry.joining(
                     shopId, i + 1, i + 1, services[i], customer[1], customer[0]);
             // The first customer is already being served; the rest are the waiting line.
-            queueEntries.save(i == 0 ? entry.withStatus(QueueStatus.IN_SERVICE) : entry);
+            queueEntries.save(i == 0 ? entry.claimedBy(onDutyBarberId) : entry);
         }
     }
 

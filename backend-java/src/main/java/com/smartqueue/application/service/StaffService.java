@@ -4,6 +4,7 @@ import com.smartqueue.application.port.in.ManageStaffUseCase;
 import com.smartqueue.application.port.in.command.CreateStaffCommand;
 import com.smartqueue.application.port.in.command.UpdateStaffPinCommand;
 import com.smartqueue.application.port.out.PasswordHasher;
+import com.smartqueue.application.port.out.QueueEntryRepository;
 import com.smartqueue.application.port.out.UserRepository;
 import com.smartqueue.domain.Role;
 import com.smartqueue.domain.exception.ConflictException;
@@ -20,10 +21,12 @@ import java.util.List;
 public class StaffService implements ManageStaffUseCase {
 
     private final UserRepository users;
+    private final QueueEntryRepository entries;
     private final PasswordHasher hasher;
 
-    public StaffService(UserRepository users, PasswordHasher hasher) {
+    public StaffService(UserRepository users, QueueEntryRepository entries, PasswordHasher hasher) {
         this.users = users;
+        this.entries = entries;
         this.hasher = hasher;
     }
 
@@ -86,13 +89,41 @@ public class StaffService implements ManageStaffUseCase {
                 existing.phone(),
                 hasher.hash(command.pin()),
                 existing.shopId(),
-                existing.active());
+                existing.active(),
+                existing.onDuty());
         return users.save(updated);
+    }
+
+    /**
+     * Going off duty is refused while this person currently has someone IN_SERVICE — they
+     * must finish or hand off first, so a customer is never silently orphaned mid-service.
+     * {@code userId} may be one of this shop's barbers, or the shop's own owner — an owner
+     * who also works the floor is just as much a chair as any barber.
+     */
+    @Override
+    @Transactional
+    public User setOnDuty(Shop shop, String userId, boolean onDuty) {
+        User existing = requireChairEligible(shop, userId);
+        if (!onDuty && entries.findActiveByServedBy(userId).isPresent()) {
+            throw new ConflictException("Finish or hand off your current customer before going off duty");
+        }
+        return users.save(onDuty ? existing.onDutyOn() : existing.onDutyOff());
     }
 
     private User requireStaffOfShop(String shopId, String staffId) {
         return users.findById(staffId)
                 .filter(u -> u.role() == Role.BARBER_STAFF && shopId.equals(u.shopId()))
                 .orElseThrow(() -> new NotFoundException("Staff not found"));
+    }
+
+    /** Anyone who can be a chair at this shop: one of its barbers, or the shop's own owner. */
+    private User requireChairEligible(Shop shop, String userId) {
+        User user = users.findById(userId).orElseThrow(() -> new NotFoundException("Staff not found"));
+        boolean isBarberHere = user.role() == Role.BARBER_STAFF && shop.id().equals(user.shopId());
+        boolean isThisOwner = user.role() == Role.SHOP_OWNER && user.id().equals(shop.ownerId());
+        if (!isBarberHere && !isThisOwner) {
+            throw new NotFoundException("Staff not found");
+        }
+        return user;
     }
 }
