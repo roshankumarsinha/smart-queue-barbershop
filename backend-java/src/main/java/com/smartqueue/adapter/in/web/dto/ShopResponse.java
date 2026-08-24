@@ -20,9 +20,10 @@ public record ShopResponse(
         LocalTime openingTime,
         LocalTime closingTime,
         Instant createdAt,
-        Instant updatedAt) {
+        Instant updatedAt,
+        int onDutyStaffCount) {
 
-    public static ShopResponse from(Shop s) {
+    public static ShopResponse from(Shop s, int onDutyStaffCount) {
         return new ShopResponse(
                 s.id(),
                 s.ownerId(),
@@ -36,6 +37,7 @@ public record ShopResponse(
                 s.openingTime(),
                 s.closingTime(),
                 s.createdAt(),
-                s.updatedAt());
+                s.updatedAt(),
+                onDutyStaffCount);
     }
 }

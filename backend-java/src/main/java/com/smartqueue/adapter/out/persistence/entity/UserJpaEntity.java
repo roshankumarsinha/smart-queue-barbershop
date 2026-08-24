@@ -46,6 +46,10 @@ public class UserJpaEntity {
     @Column(nullable = false)
     private boolean active;
 
+    /** Meaningful only for BARBER_STAFF — an on-duty barber is one concurrent chair. */
+    @Column(name = "on_duty", nullable = false)
+    private boolean onDuty;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -67,7 +71,8 @@ public class UserJpaEntity {
             String phone,
             String pinHash,
             String shopId,
-            boolean active) {
+            boolean active,
+            boolean onDuty) {
         this.id = id;
         this.role = role;
         this.name = name;
@@ -77,6 +82,7 @@ public class UserJpaEntity {
         this.pinHash = pinHash;
         this.shopId = shopId;
         this.active = active;
+        this.onDuty = onDuty;
     }
 
     public String getId() {
@@ -113,5 +119,9 @@ public class UserJpaEntity {
 
     public boolean isActive() {
         return active;
+    }
+
+    public boolean isOnDuty() {
+        return onDuty;
     }
 }

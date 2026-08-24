@@ -20,23 +20,36 @@ public record QueueEntry(
         QueueStatus status,
         int position,
         Instant joinedAt,
-        Instant updatedAt) {
+        Instant updatedAt,
+        String servedBy) {
 
-    /** A not-yet-persisted entry at the back of the queue. */
+    /** A not-yet-persisted entry at the back of the queue, not yet claimed by anyone. */
     public static QueueEntry joining(
             String shopId, int token, int position, ServiceType service, String phone, String customerName) {
         return new QueueEntry(
-                null, shopId, token, customerName, phone, service, QueueStatus.WAITING, position, null, null);
+                null, shopId, token, customerName, phone, service, QueueStatus.WAITING, position, null, null, null);
     }
 
+    /**
+     * A status change that doesn't touch who's serving this entry — {@code servedBy} is kept as
+     * a historical record (e.g. still set once a customer is DONE), not cleared on completion.
+     */
     public QueueEntry withStatus(QueueStatus newStatus) {
         return new QueueEntry(
-                id, shopId, token, customerName, phone, service, newStatus, position, joinedAt, updatedAt);
+                id, shopId, token, customerName, phone, service, newStatus, position, joinedAt, updatedAt, servedBy);
     }
 
-    /** Send this customer back to the end of the waiting list. */
+    /** A barber claims this entry into their chair. */
+    public QueueEntry claimedBy(String staffId) {
+        return new QueueEntry(
+                id, shopId, token, customerName, phone, service,
+                QueueStatus.IN_SERVICE, position, joinedAt, updatedAt, staffId);
+    }
+
+    /** Send this customer back to the end of the waiting list, unclaimed. */
     public QueueEntry requeuedAt(int newPosition) {
         return new QueueEntry(
-                id, shopId, token, customerName, phone, service, QueueStatus.WAITING, newPosition, joinedAt, updatedAt);
+                id, shopId, token, customerName, phone, service,
+                QueueStatus.WAITING, newPosition, joinedAt, updatedAt, null);
     }
 }

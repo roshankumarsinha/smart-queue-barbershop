@@ -25,4 +25,10 @@ public interface ManageShopsUseCase {
     Shop close(String shopId);
 
     Shop open(String shopId);
+
+    /**
+     * How many chairs this shop has open right now — its on-duty barbers, plus its owner
+     * too if they're also working the floor (an owner can go on duty just like a barber).
+     */
+    int onDutyChairCount(String shopId);
 }

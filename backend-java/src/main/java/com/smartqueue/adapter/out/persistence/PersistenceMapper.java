@@ -72,7 +72,8 @@ final class PersistenceMapper {
                 e.getPhone(),
                 e.getPinHash(),
                 e.getShopId(),
-                e.isActive());
+                e.isActive(),
+                e.isOnDuty());
     }
 
     static UserJpaEntity toEntity(User u) {
@@ -85,7 +86,8 @@ final class PersistenceMapper {
                 u.phone(),
                 u.pinHash(),
                 u.shopId(),
-                u.active());
+                u.active(),
+                u.onDuty());
     }
 
     static QueueEntry toDomain(QueueEntryJpaEntity e) {
@@ -99,7 +101,8 @@ final class PersistenceMapper {
                 e.getStatus(),
                 e.getPosition(),
                 e.getJoinedAt(),
-                e.getUpdatedAt());
+                e.getUpdatedAt(),
+                e.getServedBy());
     }
 
     static QueueEntryJpaEntity toEntity(QueueEntry q) {
@@ -113,7 +116,8 @@ final class PersistenceMapper {
                 q.status(),
                 q.position(),
                 q.joinedAt(),
-                q.updatedAt());
+                q.updatedAt(),
+                q.servedBy());
     }
 
     static CatalogService toDomain(ServiceCatalogJpaEntity e) {

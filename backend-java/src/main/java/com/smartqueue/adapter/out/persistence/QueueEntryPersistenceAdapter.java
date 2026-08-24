@@ -4,6 +4,7 @@ import com.smartqueue.adapter.out.persistence.repository.QueueEntryJpaRepository
 import com.smartqueue.application.port.out.QueueEntryRepository;
 import com.smartqueue.domain.QueueStatus;
 import com.smartqueue.domain.model.QueueEntry;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -31,6 +32,31 @@ class QueueEntryPersistenceAdapter implements QueueEntryRepository {
     }
 
     @Override
+    public List<QueueEntry> findAllByStatus(String shopId, QueueStatus status) {
+        return entries.findByShopIdAndStatusOrderByPositionAscJoinedAtAsc(shopId, status).stream()
+                .map(PersistenceMapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public Optional<QueueEntry> findActiveByServedBy(String staffId) {
+        return entries.findFirstByServedByAndStatus(staffId, QueueStatus.IN_SERVICE).map(PersistenceMapper::toDomain);
+    }
+
+    @Override
+    public Optional<QueueEntry> lockNextWaiting(String shopId) {
+        return entries.lockFirstByShopIdAndStatus(shopId, QueueStatus.WAITING, PageRequest.of(0, 1)).stream()
+                .findFirst()
+                .map(PersistenceMapper::toDomain);
+    }
+
+    @Override
+    public Optional<QueueEntry> lockWaitingByToken(String shopId, int token) {
+        return entries.findByShopIdAndTokenAndStatus(shopId, token, QueueStatus.WAITING)
+                .map(PersistenceMapper::toDomain);
+    }
+
+    @Override
     public List<QueueEntry> findWaitingOrdered(String shopId) {
         return entries.findByShopIdAndStatusOrderByPositionAscJoinedAtAsc(shopId, QueueStatus.WAITING).stream()
                 .map(PersistenceMapper::toDomain)
@@ -44,8 +70,8 @@ class QueueEntryPersistenceAdapter implements QueueEntryRepository {
     }
 
     @Override
-    public int countActiveAhead(String shopId, int position) {
-        return entries.countByShopIdAndStatusInAndPositionLessThan(shopId, QueueStatus.ACTIVE, position);
+    public int countWaitingAhead(String shopId, int position) {
+        return entries.countByShopIdAndStatusAndPositionLessThan(shopId, QueueStatus.WAITING, position);
     }
 
     @Override

@@ -43,6 +43,13 @@ class UserPersistenceAdapter implements UserRepository {
     }
 
     @Override
+    public List<User> findByShopIdAndRoleAndOnDutyTrue(String shopId, Role role) {
+        return users.findByShopIdAndRoleAndOnDutyTrueOrderByCreatedAtAsc(shopId, role).stream()
+                .map(PersistenceMapper::toDomain)
+                .toList();
+    }
+
+    @Override
     public boolean existsByEmail(String email) {
         return email != null && users.existsByEmail(email);
     }

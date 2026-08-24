@@ -29,4 +29,12 @@ public interface ManageStaffUseCase {
 
     /** Resets sign-in PIN. No old PIN required — this is an admin/owner action, not self-service. */
     User updatePin(String shopId, String staffId, UpdateStaffPinCommand command);
+
+    /**
+     * Marks a barber — or this shop's own owner — on/off duty; each on-duty person is one
+     * concurrent chair. Going off duty is refused while they currently have someone
+     * IN_SERVICE (finish or hand off first). Callable by ADMIN (managing someone else), or
+     * the target acting on themselves (a barber, or the shop's own owner).
+     */
+    User setOnDuty(Shop shop, String userId, boolean onDuty);
 }

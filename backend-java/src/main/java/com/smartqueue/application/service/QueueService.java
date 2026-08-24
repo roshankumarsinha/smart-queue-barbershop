@@ -14,12 +14,15 @@ import com.smartqueue.application.port.in.result.QueueSnapshot;
 import com.smartqueue.application.port.out.QueueEntryRepository;
 import com.smartqueue.application.port.out.QueueEventPublisher;
 import com.smartqueue.application.port.out.ShopRepository;
+import com.smartqueue.application.port.out.UserRepository;
 import com.smartqueue.domain.NotificationType;
 import com.smartqueue.domain.QueueStatus;
+import com.smartqueue.domain.Role;
 import com.smartqueue.domain.exception.ConflictException;
 import com.smartqueue.domain.exception.NotFoundException;
 import com.smartqueue.domain.model.QueueEntry;
 import com.smartqueue.domain.model.Shop;
+import com.smartqueue.domain.model.User;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,21 +44,24 @@ public class QueueService
 
     private static final String DEFAULT_MESSAGE = "Update from your barbershop.";
 
-    /** How many of the waiting customers get an ALMOST_YOUR_TURN nudge when the queue advances. */
-    private static final int HEADS_UP_CUSTOMERS = 2;
+    /** A waiting customer gets an ALMOST_YOUR_TURN nudge once their own estimate drops below this. */
+    private static final int HEADS_UP_THRESHOLD_MINUTES = 30;
 
     private final ShopRepository shops;
     private final QueueEntryRepository entries;
+    private final UserRepository users;
     private final CustomerNotificationService notifications;
     private final QueueEventPublisher events;
 
     public QueueService(
             ShopRepository shops,
             QueueEntryRepository entries,
+            UserRepository users,
             CustomerNotificationService notifications,
             QueueEventPublisher events) {
         this.shops = shops;
         this.entries = entries;
+        this.users = users;
         this.notifications = notifications;
         this.events = events;
     }
@@ -66,15 +72,17 @@ public class QueueService
     @Transactional(readOnly = true)
     public QueueSnapshot snapshot(String shopId) {
         Shop shop = requireShop(shopId);
-        QueueEntry serving = entries.findFirstByStatus(shopId, QueueStatus.IN_SERVICE).orElse(null);
+        List<QueueEntry> serving = entries.findAllByStatus(shopId, QueueStatus.IN_SERVICE);
         List<QueueEntry> waiting = entries.findWaitingOrdered(shopId);
+        int onDutyCount = onDutyCount(shop);
 
         return new QueueSnapshot(
                 shopId,
                 serving,
                 waiting,
                 waiting.size(),
-                shop.estimatedWaitMinutes(waiting.size()));
+                onDutyCount,
+                shop.estimatedWaitMinutes(waiting.size(), serving.size(), onDutyCount));
     }
 
     /**
@@ -91,8 +99,9 @@ public class QueueService
         }
 
         Shop shop = requireShop(entry.shopId());
-        int ahead = entries.countActiveAhead(shop.id(), entry.position());
-        return new QueueEntryStatus(entry, ahead, shop.estimatedWaitMinutes(ahead));
+        int ahead = entries.countWaitingAhead(shop.id(), entry.position());
+        int wait = shop.estimatedWaitMinutes(ahead, occupiedChairCount(shop.id()), onDutyCount(shop));
+        return new QueueEntryStatus(entry, ahead, wait);
     }
 
     // --- Writes ----------------------------------------------------------------
@@ -115,8 +124,8 @@ public class QueueService
         QueueEntry entry = entries.save(QueueEntry.joining(
                 shop.id(), token, position, command.service(), command.phone(), command.name()));
 
-        int ahead = entries.countActiveAhead(shop.id(), entry.position());
-        int wait = shop.estimatedWaitMinutes(ahead);
+        int ahead = entries.countWaitingAhead(shop.id(), entry.position());
+        int wait = shop.estimatedWaitMinutes(ahead, occupiedChairCount(shop.id()), onDutyCount(shop));
 
         notifications.notify(
                 entry,
@@ -128,17 +137,28 @@ public class QueueService
     }
 
     @Override
-    public AdvanceQueueResult advance(String shopId) {
+    public AdvanceQueueResult advance(String shopId, String staffId, Integer requestedToken) {
         Shop shop = requireShop(shopId);
+        requireOnDutyChairHolder(shop, staffId);
 
-        // Complete whoever is currently in the chair.
-        QueueEntry served = entries.findFirstByStatus(shopId, QueueStatus.IN_SERVICE)
+        // Claim first (before completing anyone), so an invalid requested token fails the
+        // whole call cleanly — the barber's current customer isn't marked DONE unless a
+        // next customer was actually found to replace them.
+        Optional<QueueEntry> claimed = requestedToken != null
+                ? entries.lockWaitingByToken(shopId, requestedToken)
+                : entries.lockNextWaiting(shopId);
+        if (requestedToken != null && claimed.isEmpty()) {
+            throw new NotFoundException("No waiting customer with token #" + requestedToken);
+        }
+
+        // Complete whoever is currently in this barber's chair.
+        QueueEntry served = entries.findActiveByServedBy(staffId)
                 .map(current -> entries.save(current.withStatus(QueueStatus.DONE)))
                 .orElse(null);
 
-        // Promote the next customer waiting.
-        QueueEntry nowServing = entries.findFirstByStatus(shopId, QueueStatus.WAITING)
-                .map(next -> entries.save(next.withStatus(QueueStatus.IN_SERVICE)))
+        // Locked so two barbers pressing "Next" at once can't both claim the same customer.
+        QueueEntry nowServing = claimed
+                .map(next -> entries.save(next.claimedBy(staffId)))
                 .orElse(null);
 
         if (nowServing != null) {
@@ -219,35 +239,77 @@ public class QueueService
     // --- Helpers ---------------------------------------------------------------
 
     /**
-     * True if this entry is one of the first {@link #HEADS_UP_CUSTOMERS} in
-     * {@link #notifyOnDeck}'s own waiting list — i.e. removing or requeuing it will
-     * actually change who's on deck. Ranked the same way notifyOnDeck ranks people, not
-     * via countActiveAhead: that count also includes whoever is IN_SERVICE, which isn't
-     * part of the waiting list at all and would silently throw the two rankings out of
-     * sync. Must be checked before the entry is mutated — a WAITING entry that's about
-     * to be skipped/left/no-shown still needs to be found in its current spot.
+     * How many chairs this shop currently has open — its on-duty barbers, plus its owner if
+     * they're also working the floor (an owner can go on duty just like a barber).
      */
-    private boolean isOnDeck(Shop shop, QueueEntry entry) {
-        List<QueueEntry> waiting = entries.findWaitingOrdered(shop.id());
-        int rank = waiting.indexOf(entry);
-        return rank >= 0 && rank < HEADS_UP_CUSTOMERS;
+    private int onDutyCount(Shop shop) {
+        int barbers = users.findByShopIdAndRoleAndOnDutyTrue(shop.id(), Role.BARBER_STAFF).size();
+        boolean ownerOnDuty = users.findById(shop.ownerId()).map(User::onDuty).orElse(false);
+        return barbers + (ownerOnDuty ? 1 : 0);
+    }
+
+    /** How many of those chairs are occupied right now — feeds the half-weight in the wait estimate. */
+    private int occupiedChairCount(String shopId) {
+        return entries.findAllByStatus(shopId, QueueStatus.IN_SERVICE).size();
     }
 
     /**
-     * Nudges the first {@link #HEADS_UP_CUSTOMERS} waiting customers with their current
-     * place in line and wait estimate. Called after any mutation that changes who is at
-     * the front — advancing always does; skipping, leaving, and a no-show only when the
+     * {@code userId} must be an on-duty chair-holder of this shop — one of its barbers, or
+     * the shop's own owner — or advancing makes no sense.
+     */
+    private User requireOnDutyChairHolder(Shop shop, String userId) {
+        User user = users.findById(userId)
+                .filter(u -> isChairEligible(shop, u))
+                .orElseThrow(() -> new NotFoundException("Staff not found"));
+        if (!user.onDuty()) {
+            throw new ConflictException("You must be on duty to serve customers");
+        }
+        return user;
+    }
+
+    private static boolean isChairEligible(Shop shop, User user) {
+        boolean isBarberHere = user.role() == Role.BARBER_STAFF && shop.id().equals(user.shopId());
+        boolean isThisOwner = user.role() == Role.SHOP_OWNER && user.id().equals(shop.ownerId());
+        return isBarberHere || isThisOwner;
+    }
+
+    /**
+     * True if this entry's own estimated wait is under {@link #HEADS_UP_THRESHOLD_MINUTES} —
+     * i.e. removing or requeuing it will actually change who's about to be nudged. Built from
+     * the same formula {@link #notifyOnDeck} uses, so the two are consistent by construction.
+     * Must be checked before the entry is mutated — a WAITING entry that's about to be
+     * skipped/left/no-shown still needs to be found in its current spot.
+     */
+    private boolean isOnDeck(Shop shop, QueueEntry entry) {
+        if (entry.status() != QueueStatus.WAITING) {
+            return false;
+        }
+        int ahead = entries.countWaitingAhead(shop.id(), entry.position());
+        int wait = shop.estimatedWaitMinutes(ahead, occupiedChairCount(shop.id()), onDutyCount(shop));
+        return wait <= HEADS_UP_THRESHOLD_MINUTES;
+    }
+
+    /**
+     * Nudges every waiting customer whose own estimated wait has dropped under
+     * {@link #HEADS_UP_THRESHOLD_MINUTES} — how many people that is scales with how many
+     * chairs are open, unlike a fixed headcount. Called after any mutation that changes who's
+     * at the front — advancing always does; skipping, leaving, and a no-show only when the
      * departing entry was itself on deck (see {@link #isOnDeck}).
      */
     private void notifyOnDeck(Shop shop) {
-        List<QueueEntry> onDeck = entries.findWaitingOrdered(shop.id());
-        for (int i = 0; i < Math.min(HEADS_UP_CUSTOMERS, onDeck.size()); i++) {
-            QueueEntry next = onDeck.get(i);
-            int ahead = entries.countActiveAhead(shop.id(), next.position());
-            notifications.notify(
-                    next,
-                    NotificationType.ALMOST_YOUR_TURN,
-                    headsUpMessage(next, i + 1, shop.estimatedWaitMinutes(ahead)));
+        int onDutyCount = onDutyCount(shop);
+        int occupiedChairs = occupiedChairCount(shop.id());
+        List<QueueEntry> waiting = entries.findWaitingOrdered(shop.id());
+        for (int i = 0; i < waiting.size(); i++) {
+            QueueEntry next = waiting.get(i);
+            int ahead = entries.countWaitingAhead(shop.id(), next.position());
+            int waitMinutes = shop.estimatedWaitMinutes(ahead, occupiedChairs, onDutyCount);
+            if (waitMinutes > HEADS_UP_THRESHOLD_MINUTES) {
+                // Position-ordered list, so wait time only grows from here on — nobody
+                // further back can be under the threshold either.
+                break;
+            }
+            notifications.notify(next, NotificationType.ALMOST_YOUR_TURN, headsUpMessage(next, i + 1, waitMinutes));
         }
     }
 

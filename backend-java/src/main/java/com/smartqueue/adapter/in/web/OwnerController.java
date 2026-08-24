@@ -8,6 +8,7 @@ import com.smartqueue.application.port.in.ManageOwnersUseCase;
 import com.smartqueue.application.port.in.ManageShopsUseCase;
 import com.smartqueue.application.port.in.command.CreateOwnerCommand;
 import com.smartqueue.application.port.in.command.CreateShopCommand;
+import com.smartqueue.domain.model.Shop;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -82,7 +83,7 @@ public class OwnerController {
     @GetMapping("/{id}/shops")
     public List<ShopResponse> shops(@PathVariable String id) {
         owners.findById(id); // 404s if the owner does not exist
-        return shops.findByOwner(id).stream().map(ShopResponse::from).toList();
+        return shops.findByOwner(id).stream().map(this::toResponse).toList();
     }
 
     @Operation(summary = "Register a shop under an owner", description = "Requires the ADMIN role.")
@@ -90,7 +91,7 @@ public class OwnerController {
     @ResponseStatus(HttpStatus.CREATED)
     public ShopResponse createShop(@PathVariable String id, @Valid @RequestBody CreateShopRequest request) {
         owners.findById(id); // 404s if the owner does not exist
-        return ShopResponse.from(shops.create(new CreateShopCommand(
+        Shop created = shops.create(new CreateShopCommand(
                 id,
                 request.name(),
                 request.type(),
@@ -99,6 +100,11 @@ public class OwnerController {
                 request.address(),
                 request.locationUrl(),
                 request.openingTime(),
-                request.closingTime())));
+                request.closingTime()));
+        return ShopResponse.from(created, 0); // brand new — no staff registered yet
+    }
+
+    private ShopResponse toResponse(Shop shop) {
+        return ShopResponse.from(shop, shops.onDutyChairCount(shop.id()));
     }
 }

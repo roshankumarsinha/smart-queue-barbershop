@@ -19,6 +19,8 @@ public interface UserJpaRepository extends JpaRepository<UserJpaEntity, String> 
 
     List<UserJpaEntity> findByShopIdAndRoleOrderByCreatedAtAsc(String shopId, Role role);
 
+    List<UserJpaEntity> findByShopIdAndRoleAndOnDutyTrueOrderByCreatedAtAsc(String shopId, Role role);
+
     boolean existsByEmail(String email);
 
     boolean existsByPhone(String phone);

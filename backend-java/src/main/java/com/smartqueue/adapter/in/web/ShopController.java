@@ -49,14 +49,14 @@ public class ShopController {
     @Operation(summary = "List open shops", description = "Closed shops are hidden — fetch one directly by id instead.")
     @GetMapping
     public List<ShopResponse> findAll() {
-        return shops.findAll().stream().map(ShopResponse::from).toList();
+        return shops.findAll().stream().map(this::toResponse).toList();
     }
 
     /** Unlike the list, a closed shop is still reachable directly — staff need this to reopen it. */
     @Operation(summary = "Fetch one shop", description = "Works for closed shops too, unlike the list.")
     @GetMapping("/{id}")
     public ShopResponse findOne(@PathVariable String id) {
-        return ShopResponse.from(shops.findById(id));
+        return toResponse(shops.findById(id));
     }
 
     /**
@@ -68,7 +68,7 @@ public class ShopController {
     @GetMapping("/mine")
     @PreAuthorize("hasRole('SHOP_OWNER')")
     public List<ShopResponse> mine(@AuthenticationPrincipal AuthenticatedUser caller) {
-        return shops.findByOwner(caller.userId()).stream().map(ShopResponse::from).toList();
+        return shops.findByOwner(caller.userId()).stream().map(this::toResponse).toList();
     }
 
     /**
@@ -89,7 +89,7 @@ public class ShopController {
         if (request.ownerId() != null && caller.role() != Role.ADMIN) {
             throw new AccessDeniedException("Only an admin can reassign a shop's owner");
         }
-        return ShopResponse.from(shops.update(id, new UpdateShopCommand(
+        return toResponse(shops.update(id, new UpdateShopCommand(
                 request.ownerId(),
                 request.name(),
                 request.type(),
@@ -118,6 +118,10 @@ public class ShopController {
     @PreAuthorize(SHOP_MANAGER)
     public ShopStatusResponse open(@PathVariable String id, @AuthenticationPrincipal AuthenticatedUser caller) {
         return ShopStatusResponse.from(shops.open(requireCanManage(id, caller).id()));
+    }
+
+    private ShopResponse toResponse(Shop shop) {
+        return ShopResponse.from(shop, shops.onDutyChairCount(shop.id()));
     }
 
     /**

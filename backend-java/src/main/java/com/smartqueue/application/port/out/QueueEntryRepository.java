@@ -13,6 +13,26 @@ public interface QueueEntryRepository {
     /** The single entry currently in the given status, ordered by position then join time. */
     Optional<QueueEntry> findFirstByStatus(String shopId, QueueStatus status);
 
+    /** Every entry currently in the given status — e.g. all the shop's occupied chairs. */
+    List<QueueEntry> findAllByStatus(String shopId, QueueStatus status);
+
+    /** The entry this barber is currently serving, if any. */
+    Optional<QueueEntry> findActiveByServedBy(String staffId);
+
+    /**
+     * Claims the earliest WAITING entry under a row lock, so two barbers pressing "Next" at
+     * the same moment can't both claim the same customer — the second transaction blocks on
+     * this row, then re-reads once the first commits and naturally sees it's no longer WAITING.
+     */
+    Optional<QueueEntry> lockNextWaiting(String shopId);
+
+    /**
+     * Same locking guarantee as {@link #lockNextWaiting}, but for a specific token — a barber
+     * choosing to serve a customer out of turn (e.g. an earlier token hasn't shown up yet).
+     * Empty if that token doesn't exist or isn't currently WAITING.
+     */
+    Optional<QueueEntry> lockWaitingByToken(String shopId, int token);
+
     /** Everyone still waiting, in the order they will be served. */
     List<QueueEntry> findWaitingOrdered(String shopId);
 
@@ -22,8 +42,12 @@ public interface QueueEntryRepository {
      */
     Optional<QueueEntry> findActiveByPhone(String phone);
 
-    /** How many active customers sit in front of this position. */
-    int countActiveAhead(String shopId, int position);
+    /**
+     * How many customers still WAITING sit in front of this position — the basis for wait-time
+     * estimates. Someone already IN_SERVICE has left the waiting line, so they don't count here;
+     * with multiple chairs, dividing this by chair count is what makes the estimate meaningful.
+     */
+    int countWaitingAhead(String shopId, int position);
 
     /** Highest token ever issued by this shop — tokens never get reused. */
     Optional<Integer> highestToken(String shopId);
