@@ -1,24 +1,50 @@
-import { useState } from 'react';
-import { useSelector } from 'react-redux';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
-import { CircularProgress, Typography } from '@mui/material';
-import { User, Mail, Phone, Lock, UserPlus } from 'lucide-react';
-import TicketDialog from './TicketDialog';
-import TicketField from './form/TicketField';
-import ShimmerButton from './ShimmerButton';
-import { createOwner } from '../api/owners';
-import { selectToken } from '../store/authSlice';
-import { ownerSchema } from '../lib/registrationSchemas';
-import { validateWithSchema } from '../lib/authSchemas';
+import { useState } from "react";
+import { useSelector } from "react-redux";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { motion } from "framer-motion";
+import { CircularProgress, Typography } from "@mui/material";
+import { User, Mail, Phone, Lock, UserPlus } from "lucide-react";
+import TicketDialog from "./TicketDialog";
+import TicketField from "./form/TicketField";
+import ShimmerButton from "./ShimmerButton";
+import { createOwner } from "../api/owners";
+import { selectToken } from "../store/authSlice";
+import { ownerSchema } from "../lib/registrationSchemas";
+import { validateWithSchema } from "../lib/authSchemas";
 
-const EMPTY = { name: '', email: '', phone: '', password: '' };
+const EMPTY = { name: "", email: "", phone: "", password: "" };
 
 const FIELDS = [
-  { name: 'name', label: 'Full name', icon: User, placeholder: 'Aisha Khan', autoComplete: 'name' },
-  { name: 'email', label: 'Email', icon: Mail, type: 'email', placeholder: 'owner@shop.com', autoComplete: 'off' },
-  { name: 'phone', label: 'Phone (optional)', icon: Phone, type: 'tel', placeholder: '9876543210', inputMode: 'tel' },
-  { name: 'password', label: 'Initial password', icon: Lock, type: 'password', placeholder: 'At least 6 characters' },
+  {
+    name: "name",
+    label: "Full name",
+    icon: User,
+    placeholder: "Aisha Khan",
+    autoComplete: "name",
+  },
+  {
+    name: "email",
+    label: "Email",
+    icon: Mail,
+    type: "email",
+    placeholder: "owner@shop.com",
+    autoComplete: "off",
+  },
+  {
+    name: "phone",
+    label: "Phone",
+    icon: Phone,
+    type: "tel",
+    placeholder: "9876543210",
+    inputMode: "tel",
+  },
+  {
+    name: "password",
+    label: "Initial password",
+    icon: Lock,
+    type: "password",
+    placeholder: "At least 6 characters",
+  },
 ];
 
 export default function RegisterOwnerDialog({ open, onClose, onCreated }) {
@@ -33,12 +59,13 @@ export default function RegisterOwnerDialog({ open, onClose, onCreated }) {
   const mutation = useMutation({
     mutationFn: (body) => createOwner(body, token),
     onSuccess: (owner) => {
-      queryClient.invalidateQueries({ queryKey: ['owners'] });
+      queryClient.invalidateQueries({ queryKey: ["owners"] });
       resetForm();
       onClose(); // close directly — handleClose's in-flight guard would block this
       onCreated?.(owner);
     },
-    onError: (err) => setFormError(err.message || 'Could not register owner. Try again.'),
+    onError: (err) =>
+      setFormError(err.message || "Could not register owner. Try again."),
   });
 
   function handleChange(name, value) {
@@ -69,7 +96,8 @@ export default function RegisterOwnerDialog({ open, onClose, onCreated }) {
     if (Object.keys(nextErrors).length > 0) {
       setShakes((prev) => {
         const next = { ...prev };
-        for (const name of Object.keys(nextErrors)) next[name] = (next[name] ?? 0) + 1;
+        for (const name of Object.keys(nextErrors))
+          next[name] = (next[name] ?? 0) + 1;
         return next;
       });
       return;
@@ -109,16 +137,26 @@ export default function RegisterOwnerDialog({ open, onClose, onCreated }) {
             component={motion.p}
             initial={{ opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
-            sx={{ mb: 1, textAlign: 'center', fontSize: 14, fontWeight: 500, color: 'error.main' }}
+            sx={{
+              mb: 1,
+              textAlign: "center",
+              fontSize: 14,
+              fontWeight: 500,
+              color: "error.main",
+            }}
           >
             {formError}
           </Typography>
         )}
 
-        <ShimmerButton type="submit" disabled={mutation.isPending} className="mt-1 w-full text-[15px]">
+        <ShimmerButton
+          type="submit"
+          disabled={mutation.isPending}
+          className="mt-1 w-full text-[15px]"
+        >
           {mutation.isPending ? (
             <>
-              <CircularProgress size={16} sx={{ color: '#241A14' }} />
+              <CircularProgress size={16} sx={{ color: "#241A14" }} />
               Registering…
             </>
           ) : (

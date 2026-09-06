@@ -106,7 +106,10 @@ export default function OwnerStatsPanel({ shops = [], token }) {
     ? boards.reduce((max, b) => Math.max(max, b.data?.estimatedWaitMinutes ?? 0), 0)
     : null;
   const serving = anyLoaded
-    ? boards.reduce((n, b) => n + (b.data?.serving ? 1 : 0), 0)
+    ? boards.reduce((n, b) => {
+        const s = b.data?.serving;
+        return n + (Array.isArray(s) ? s.length : s ? 1 : 0);
+      }, 0)
     : null;
 
   return (

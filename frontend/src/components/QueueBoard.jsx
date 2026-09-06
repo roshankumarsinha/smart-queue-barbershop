@@ -16,7 +16,7 @@ import {
   UserX,
   Users,
   Clock,
-  Scissors,
+  Armchair,
 } from 'lucide-react';
 import { useQueue } from '../hooks/useQueue';
 import { serviceLabel } from '../config/services';
@@ -24,6 +24,7 @@ import { staggerContainer, staggerItem } from '../lib/motion';
 import WalkinDialog from './WalkinDialog';
 import ShimmerButton from './ShimmerButton';
 import AnimatedNumber from './AnimatedNumber';
+import ChairsBoard from './ChairsBoard';
 
 const springy = { type: 'spring', stiffness: 500, damping: 34 };
 
@@ -95,79 +96,6 @@ function ServiceChip({ service }) {
         height: 22,
       }}
     />
-  );
-}
-
-function ServingCard({ entry }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 14, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -14, scale: 0.98 }}
-      transition={{ duration: 0.3, ease: 'easeOut' }}
-    >
-      <Box
-        className="animate-serving-pulse"
-        sx={{
-          borderRadius: 3,
-          p: 2.5,
-          bgcolor: 'background.paper',
-          color: 'text.primary',
-          border: '2px solid',
-          borderColor: 'primary.main',
-          boxShadow: 6,
-        }}
-      >
-        <Typography
-          className="font-signage"
-          sx={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.22em', color: 'secondary.main' }}
-        >
-          Now serving
-        </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 0.75 }}>
-          <Typography
-            className="font-display"
-            sx={{ fontSize: 56, lineHeight: 0.9, color: 'primary.dark' }}
-          >
-            #{entry.token}
-          </Typography>
-          <Box>
-            <Typography sx={{ fontSize: 20, fontWeight: 700, lineHeight: 1.2 }}>
-              {entry.customerName || 'Walk-in'}
-            </Typography>
-            <Box sx={{ mt: 0.5 }}>
-              <ServiceChip service={entry.service} />
-            </Box>
-          </Box>
-        </Box>
-      </Box>
-    </motion.div>
-  );
-}
-
-function EmptyServing() {
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.25 }}
-    >
-      <Box
-        sx={{
-          borderRadius: 3,
-          p: 2.5,
-          textAlign: 'center',
-          border: '2px dashed rgba(243,236,223,0.15)',
-          color: 'text.secondary',
-        }}
-      >
-        <Scissors size={22} style={{ opacity: 0.6 }} />
-        <Typography sx={{ mt: 0.5, fontSize: 14, color: '#C9BCA8' }}>
-          Chair is free — press “Next customer”.
-        </Typography>
-      </Box>
-    </motion.div>
   );
 }
 
@@ -269,9 +197,11 @@ function BoardSkeleton() {
 }
 
 // The live queue board. `canNoShow` gates the owner-only no-show action.
-export default function QueueBoard({ canNoShow = false }) {
+// `shopId` targets a specific shop's queue (owners drilling into one of several
+// shops); omitted, it falls back to the signed-in user's own shop.
+export default function QueueBoard({ canNoShow = false, shopId }) {
   const { status, isPending, isError, error, next, walkin, skip, noShow } =
-    useQueue();
+    useQueue(shopId);
   const [walkinOpen, setWalkinOpen] = useState(false);
 
   if (isPending) return <BoardSkeleton />;
@@ -284,11 +214,22 @@ export default function QueueBoard({ canNoShow = false }) {
     );
   }
 
-  const serving = status?.serving ?? null;
+  // Multichair: the board returns `serving` as an array (one entry per occupied
+  // chair). Normalize so a legacy single-object shape still works.
+  const servingList = Array.isArray(status?.serving)
+    ? status.serving
+    : status?.serving
+      ? [status.serving]
+      : [];
+  const servingCount = servingList.length;
+  const chairCount = status?.onDutyStaffCount ?? 0;
   const waiting = status?.waiting ?? [];
   const totalWaiting = status?.totalWaiting ?? 0;
   const eta = status?.estimatedWaitMinutes ?? 0;
-  const nothingToServe = !serving && waiting.length === 0;
+  // No free chair to seat the next customer (all on-duty barbers are busy, or
+  // nobody's on duty) — "Next customer" would have nowhere to go.
+  const noFreeChair = chairCount === 0 || servingCount >= chairCount;
+  const nothingToServe = waiting.length === 0 || noFreeChair;
   const acting = skip.isPending || noShow.isPending;
 
   return (
@@ -328,31 +269,14 @@ export default function QueueBoard({ canNoShow = false }) {
           </StatTile>
         </motion.div>
         <motion.div variants={staggerItem}>
-          <StatTile icon={Scissors} label="Serving">
-            <AnimatePresence mode="popLayout" initial={false}>
-              <motion.span
-                key={serving ? `#${serving.token}` : '—'}
-                initial={{ y: -10, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                exit={{ y: 10, opacity: 0 }}
-                transition={{ duration: 0.22 }}
-                style={{ display: 'inline-block' }}
-              >
-                {serving ? `#${serving.token}` : '—'}
-              </motion.span>
-            </AnimatePresence>
+          <StatTile icon={Armchair} label="Chairs open">
+            <AnimatedNumber value={chairCount} />
           </StatTile>
         </motion.div>
       </motion.div>
 
-      {/* Now serving */}
-      <AnimatePresence mode="wait">
-        {serving ? (
-          <ServingCard key={serving.id} entry={serving} />
-        ) : (
-          <EmptyServing key="empty" />
-        )}
-      </AnimatePresence>
+      {/* Chairs — one per on-duty barber; occupied chairs show who's being served. */}
+      <ChairsBoard chairCount={chairCount} serving={servingList} />
 
       {/* Actions */}
       <Box sx={{ display: 'flex', gap: 1.5, my: 3 }}>

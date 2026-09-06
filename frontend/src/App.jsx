@@ -7,7 +7,7 @@ import {
   Navigate,
   useLocation,
 } from 'react-router-dom';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, MotionConfig } from 'framer-motion';
 import { ThemeProvider, StyledEngineProvider } from '@mui/material/styles';
 
 import { theme } from './theme';
@@ -25,6 +25,8 @@ import OwnerStats from './screens/OwnerStats';
 import ShopServices from './screens/ShopServices';
 import ShopStaff from './screens/ShopStaff';
 import MyShops from './screens/MyShops';
+import ShopQueue from './screens/ShopQueue';
+import ShopStats from './screens/ShopStats';
 
 // Single react-query client for the whole app. Real API calls will hang off
 // this once a backend exists (see src/api/client.js).
@@ -120,6 +122,22 @@ function AnimatedRoutes() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/owner/shops/:shopId/queue"
+          element={
+            <ProtectedRoute allow="SHOP_OWNER">
+              <ShopQueue />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/owner/shops/:shopId/stats"
+          element={
+            <ProtectedRoute allow="SHOP_OWNER">
+              <ShopStats />
+            </ProtectedRoute>
+          }
+        />
         {/* Unknown path -> let the index logic decide where to send them. */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
@@ -137,16 +155,20 @@ export default function App() {
           <QueryClientProvider client={queryClient}>
             {/* Fixed film-grain texture over the ambient backdrop. */}
             <div className="grain-overlay" aria-hidden="true" />
-            <BrowserRouter>
-              {/* Sticky-footer column: routes grow to fill, footer pins to the
-                  bottom on every page. */}
-              <div className="relative z-10 flex min-h-screen flex-col">
-                <div className="flex flex-1 flex-col">
-                  <AnimatedRoutes />
+            {/* reducedMotion="user" makes every framer-motion animation honor the
+                OS "reduce motion" setting automatically (ui-ux-pro-max §7). */}
+            <MotionConfig reducedMotion="user">
+              <BrowserRouter>
+                {/* Sticky-footer column: routes grow to fill, footer pins to the
+                    bottom on every page. */}
+                <div className="relative z-10 flex min-h-screen flex-col">
+                  <div className="flex flex-1 flex-col">
+                    <AnimatedRoutes />
+                  </div>
+                  <Footer />
                 </div>
-                <Footer />
-              </div>
-            </BrowserRouter>
+              </BrowserRouter>
+            </MotionConfig>
           </QueryClientProvider>
         </Provider>
       </ThemeProvider>

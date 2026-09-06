@@ -55,7 +55,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private void authenticate(User user, HttpServletRequest request) {
-        var principal = new AuthenticatedUser(user.id(), user.role(), user.shopId());
+        var principal = new AuthenticatedUser(user.id(), user.role(), user.shopId(), user.onDuty());
         var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + user.role().name()));
 
         var authentication = new UsernamePasswordAuthenticationToken(principal, null, authorities);

@@ -3,7 +3,7 @@ import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Box, CircularProgress, Typography } from '@mui/material';
-import { Store, MapPin, MessageCircle, Clock, ChevronRight, Users } from 'lucide-react';
+import { Store, MapPin, MessageCircle, Clock, Users, ListOrdered, BarChart3 } from 'lucide-react';
 import BackButton from '../components/BackButton';
 import DashboardShell from '../components/DashboardShell';
 import PageTransition from '../components/PageTransition';
@@ -11,7 +11,7 @@ import { getMyShops } from '../api/shops';
 import { selectToken } from '../store/authSlice';
 import { getShopType } from '../config/shopTypes';
 import { getStatusStyle } from '../config/shopStatus';
-import { staggerContainer, staggerItem } from '../lib/motion';
+import { tileGrid, tileItem } from '../lib/motion';
 
 function formatTime(t) {
   if (!t) return null;
@@ -52,7 +52,51 @@ function MetaChip({ icon: Icon, label, href }) {
   );
 }
 
-function ShopCard({ shop, onOpen }) {
+// One of the three per-shop actions. A brass-tinted pill that lifts + brightens
+// on hover, springs on tap. `accent` recolors it ('brass' | 'oxblood').
+function ShopAction({ icon: Icon, label, onClick, accent = 'brass' }) {
+  const brass = accent === 'brass';
+  return (
+    <Box
+      component={motion.button}
+      type="button"
+      onClick={onClick}
+      whileHover={{ y: -2 }}
+      whileTap={{ scale: 0.96 }}
+      transition={{ type: 'spring', stiffness: 420, damping: 24 }}
+      className="font-signage"
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 0.5,
+        py: 1.1,
+        px: 0.5,
+        cursor: 'pointer',
+        borderRadius: 2,
+        border: '1px solid',
+        borderColor: brass ? 'rgba(200,155,60,0.35)' : 'rgba(123,45,45,0.35)',
+        bgcolor: brass ? 'rgba(200,155,60,0.1)' : 'rgba(123,45,45,0.1)',
+        color: brass ? 'primary.dark' : 'secondary.main',
+        fontWeight: 700,
+        fontSize: 11.5,
+        textTransform: 'uppercase',
+        letterSpacing: '0.06em',
+        transition: 'background-color 180ms, border-color 180ms',
+        '&:hover': {
+          bgcolor: brass ? 'rgba(200,155,60,0.2)' : 'rgba(123,45,45,0.18)',
+          borderColor: brass ? 'rgba(200,155,60,0.6)' : 'rgba(123,45,45,0.55)',
+        },
+      }}
+    >
+      <Icon size={18} aria-hidden="true" />
+      {label}
+    </Box>
+  );
+}
+
+function ShopCard({ shop, navigate }) {
   const meta = getShopType(shop.type);
   const Icon = meta.icon;
   const st = getStatusStyle(shop.status);
@@ -63,30 +107,19 @@ function ShopCard({ shop, onOpen }) {
   return (
     <Box
       component={motion.div}
-      variants={staggerItem}
+      variants={tileItem}
+      layout
       whileHover={{ y: -3 }}
-      whileTap={{ scale: 0.995 }}
       transition={{ type: 'spring', stiffness: 400, damping: 26 }}
-      onClick={onOpen}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onOpen();
-        }
-      }}
       sx={{
         borderRadius: 2,
         p: 1.75,
-        cursor: 'pointer',
         bgcolor: 'background.paper',
         color: 'text.primary',
         boxShadow: 3,
         border: '1px solid rgba(200,155,60,0.16)',
         transition: 'box-shadow 200ms, border-color 200ms',
         '&:hover': { boxShadow: '0 16px 30px -14px rgba(0,0,0,0.65)', borderColor: 'rgba(200,155,60,0.4)' },
-        '&:hover .manage-chev': { transform: 'translateX(3px)' },
       }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -125,28 +158,28 @@ function ShopCard({ shop, onOpen }) {
         </Box>
       )}
 
+      {/* Per-shop actions — each opens that feature scoped to this shop. */}
       <Box
         sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 0.5,
-          mt: 1.25,
-          pt: 1.25,
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+          gap: 0.75,
+          mt: 1.5,
+          pt: 1.5,
           borderTop: '1px dashed rgba(107,93,79,0.25)',
-          color: 'primary.dark',
         }}
       >
-        <Users size={14} aria-hidden="true" />
-        <Typography sx={{ flex: 1, fontSize: 12.5, fontWeight: 700 }}>Manage staff</Typography>
-        <ChevronRight size={18} aria-hidden="true" className="manage-chev" style={{ transition: 'transform 200ms' }} />
+        <ShopAction icon={ListOrdered} label="Queue" onClick={() => navigate(`/owner/shops/${shop.id}/queue`)} />
+        <ShopAction icon={Users} label="Staff" onClick={() => navigate(`/owner/shops/${shop.id}`)} />
+        <ShopAction icon={BarChart3} label="Stats" accent="oxblood" onClick={() => navigate(`/owner/shops/${shop.id}/stats`)} />
       </Box>
     </Box>
   );
 }
 
-// Self-service shop list for a SHOP_OWNER — the counterpart to the admin's
-// owner-drill-down (OwnerShops.jsx), but scoped to the signed-in owner and
-// without a "register shop" action (only ADMIN registers shops for now).
+// Self-service shop list for a SHOP_OWNER. Each card carries the three per-shop
+// actions (live queue, staff, stats); the admin's owner-drill-down lives in
+// OwnerShops.jsx.
 export default function MyShops() {
   const token = useSelector(selectToken);
   const navigate = useNavigate();
@@ -217,14 +250,14 @@ export default function MyShops() {
         ) : (
           <Box
             component={motion.div}
-            variants={staggerContainer}
+            variants={tileGrid}
             initial="hidden"
             animate="show"
             sx={{ display: 'flex', flexDirection: 'column', gap: 1.25, mb: 3 }}
           >
             <AnimatePresence initial={false}>
               {shops.map((shop) => (
-                <ShopCard key={shop.id} shop={shop} onOpen={() => navigate(`/owner/shops/${shop.id}`)} />
+                <ShopCard key={shop.id} shop={shop} navigate={navigate} />
               ))}
             </AnimatePresence>
           </Box>
