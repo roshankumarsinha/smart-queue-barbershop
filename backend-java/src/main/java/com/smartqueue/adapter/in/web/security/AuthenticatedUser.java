@@ -7,5 +7,5 @@ import com.smartqueue.domain.Role;
  * Injected into handlers with {@code @AuthenticationPrincipal} — the Spring
  * equivalent of the NestJS {@code @CurrentUser()} decorator.
  */
-public record AuthenticatedUser(String userId, Role role, String shopId) {
+public record AuthenticatedUser(String userId, Role role, String shopId, boolean onDuty) {
 }

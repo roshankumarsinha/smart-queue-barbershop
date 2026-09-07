@@ -5,15 +5,19 @@ import { useNavigate } from 'react-router-dom';
 import { logout, selectShopId, selectToken } from '../store/authSlice';
 import * as queueApi from '../api/queue';
 
-// Live queue data + staff actions for the current user's shop.
+// Live queue data + staff actions for a shop.
 //
+// - `shopIdOverride` targets a specific shop (owners with several shops open the
+//   per-shop board at /owner/shops/:shopId/queue). When omitted it falls back to
+//   the signed-in user's own shop (the single-shop owner / barber case).
 // - Polls `/queue/status` every few seconds (refetchInterval) so the board stays
 //   fresh. Mutations invalidate the query so the acting user sees changes at once.
 // - The backend also emits Socket.io `queue:update` events; swapping polling for
 //   a socket subscription is a drop-in upgrade later (see backend QueueGateway).
-export function useQueue() {
+export function useQueue(shopIdOverride) {
   const token = useSelector(selectToken);
-  const shopId = useSelector(selectShopId);
+  const ownShopId = useSelector(selectShopId);
+  const shopId = shopIdOverride ?? ownShopId;
   const qc = useQueryClient();
   const dispatch = useDispatch();
   const navigate = useNavigate();

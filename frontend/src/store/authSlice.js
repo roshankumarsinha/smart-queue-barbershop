@@ -37,10 +37,15 @@ const authSlice = createSlice({
       // Reset back to a clean initial state.
       return { ...initialState };
     },
+    // Reflect a barber's own on/off-duty toggle in the session so the state
+    // survives reloads (persisted to localStorage) without a round-trip to /me.
+    setUserOnDuty(state, action) {
+      if (state.user) state.user.onDuty = action.payload;
+    },
   },
 });
 
-export const { loginStart, loginSuccess, loginFailure, logout } =
+export const { loginStart, loginSuccess, loginFailure, logout, setUserOnDuty } =
   authSlice.actions;
 
 // Selectors

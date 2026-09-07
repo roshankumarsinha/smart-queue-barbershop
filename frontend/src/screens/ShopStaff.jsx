@@ -4,15 +4,16 @@ import { useSelector } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Box, CircularProgress, IconButton, Snackbar, Typography } from '@mui/material';
-import { ArrowRight, Sparkles, UserPlus, Trash2, KeyRound, Phone, Scissors, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, Sparkles, UserPlus, Trash2, KeyRound, Phone, Scissors, CheckCircle2, Armchair } from 'lucide-react';
 import BackButton from '../components/BackButton';
 import DashboardShell from '../components/DashboardShell';
 import PageTransition from '../components/PageTransition';
 import ShimmerButton from '../components/ShimmerButton';
 import AddStaffDialog from '../components/AddStaffDialog';
 import ResetStaffPinDialog from '../components/ResetStaffPinDialog';
+import DutyToggle from '../components/DutyToggle';
 import { getShop } from '../api/shops';
-import { getShopStaff, removeShopStaff } from '../api/staff';
+import { getShopStaff, removeShopStaff, setStaffDuty } from '../api/staff';
 import { selectRole, selectToken } from '../store/authSlice';
 import { getShopType } from '../config/shopTypes';
 import { getStatusStyle } from '../config/shopStatus';
@@ -37,6 +38,30 @@ function StaffCard({ staff, shopId, justAdded, isAdmin, onResetPin }) {
     },
   });
 
+  // Owner flips a barber's duty (each on-duty barber is a chair). Optimistically
+  // update the roster so the switch responds instantly, then refresh the roster
+  // and the live board (chair count changes).
+  const duty = useMutation({
+    mutationFn: (next) => setStaffDuty(shopId, staff.id, next, token),
+    onMutate: async (next) => {
+      await queryClient.cancelQueries({ queryKey: ['shop-staff', shopId] });
+      const prev = queryClient.getQueryData(['shop-staff', shopId]);
+      queryClient.setQueryData(['shop-staff', shopId], (old) =>
+        old?.map((s) => (s.id === staff.id ? { ...s, onDuty: next } : s)),
+      );
+      return { prev };
+    },
+    onError: (_e, _next, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(['shop-staff', shopId], ctx.prev);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['shop-staff', shopId] });
+      queryClient.invalidateQueries({ queryKey: ['queue', shopId] });
+    },
+  });
+
+  const onDuty = !!staff.onDuty;
+
   return (
     <Box
       component={motion.div}
@@ -46,9 +71,6 @@ function StaffCard({ staff, shopId, justAdded, isAdmin, onResetPin }) {
       whileHover={{ y: -3 }}
       transition={{ type: 'spring', stiffness: 400, damping: 26 }}
       sx={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 1.5,
         borderRadius: 2,
         p: 1.75,
         bgcolor: 'background.paper',
@@ -61,55 +83,87 @@ function StaffCard({ staff, shopId, justAdded, isAdmin, onResetPin }) {
         '&:hover': { boxShadow: '0 16px 30px -14px rgba(0,0,0,0.65)', borderColor: 'rgba(200,155,60,0.4)' },
       }}
     >
-      <Box
-        sx={{
-          display: 'grid',
-          placeItems: 'center',
-          width: 46,
-          height: 46,
-          flexShrink: 0,
-          borderRadius: '50%',
-          bgcolor: 'rgba(200,155,60,0.14)',
-          border: '1px solid rgba(200,155,60,0.4)',
-          color: 'primary.dark',
-        }}
-      >
-        <Typography className="font-display" sx={{ fontSize: 17, lineHeight: 1 }}>
-          {initialsOf(staff.name)}
-        </Typography>
-      </Box>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <Box
+          sx={{
+            display: 'grid',
+            placeItems: 'center',
+            width: 46,
+            height: 46,
+            flexShrink: 0,
+            borderRadius: '50%',
+            bgcolor: 'rgba(200,155,60,0.14)',
+            border: '1px solid rgba(200,155,60,0.4)',
+            color: 'primary.dark',
+          }}
+        >
+          <Typography className="font-display" sx={{ fontSize: 17, lineHeight: 1 }}>
+            {initialsOf(staff.name)}
+          </Typography>
+        </Box>
 
-      <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontWeight: 700 }} noWrap>{staff.name}</Typography>
-        <Typography sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, fontSize: 12, color: 'text.secondary' }}>
-          <Phone size={12} aria-hidden="true" /> {staff.phone}
-        </Typography>
-      </Box>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography sx={{ fontWeight: 700 }} noWrap>{staff.name}</Typography>
+          <Typography sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, fontSize: 12, color: 'text.secondary' }}>
+            <Phone size={12} aria-hidden="true" /> {staff.phone}
+          </Typography>
+        </Box>
 
-      <IconButton
-        onClick={onResetPin}
-        aria-label={`Reset PIN for ${staff.name}`}
-        size="small"
-        component={motion.button}
-        whileTap={{ scale: 0.85 }}
-        sx={{ color: 'text.secondary', flexShrink: 0, '&:hover': { color: 'primary.dark', bgcolor: 'transparent' } }}
-      >
-        <KeyRound size={16} />
-      </IconButton>
-
-      {isAdmin && (
         <IconButton
-          onClick={() => del.mutate()}
-          disabled={del.isPending}
-          aria-label={`Remove ${staff.name}`}
+          onClick={onResetPin}
+          aria-label={`Reset PIN for ${staff.name}`}
           size="small"
           component={motion.button}
           whileTap={{ scale: 0.85 }}
-          sx={{ color: 'text.secondary', flexShrink: 0, '&:hover': { color: 'secondary.main', bgcolor: 'transparent' } }}
+          sx={{ color: 'text.secondary', flexShrink: 0, '&:hover': { color: 'primary.dark', bgcolor: 'transparent' } }}
         >
-          <Trash2 size={17} />
+          <KeyRound size={16} />
         </IconButton>
-      )}
+
+        {isAdmin && (
+          <IconButton
+            onClick={() => del.mutate()}
+            disabled={del.isPending}
+            aria-label={`Remove ${staff.name}`}
+            size="small"
+            component={motion.button}
+            whileTap={{ scale: 0.85 }}
+            sx={{ color: 'text.secondary', flexShrink: 0, '&:hover': { color: 'secondary.main', bgcolor: 'transparent' } }}
+          >
+            <Trash2 size={17} />
+          </IconButton>
+        )}
+      </Box>
+
+      {/* Duty row — each on-duty barber opens one chair for this shop. */}
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          mt: 1.25,
+          pt: 1.25,
+          borderTop: '1px dashed rgba(107,93,79,0.25)',
+        }}
+      >
+        <Box
+          component={motion.span}
+          animate={{ color: onDuty ? '#3F7A57' : '#8A7A68' }}
+          sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}
+        >
+          <Armchair size={15} aria-hidden="true" />
+          <Typography sx={{ fontSize: 12.5, fontWeight: 700 }}>
+            {onDuty ? 'On duty · chair open' : 'Off duty'}
+          </Typography>
+        </Box>
+        <Box sx={{ flex: 1 }} />
+        <DutyToggle
+          size="sm"
+          checked={onDuty}
+          pending={duty.isPending}
+          onChange={(next) => duty.mutate(next)}
+        />
+      </Box>
     </Box>
   );
 }

@@ -18,3 +18,9 @@ export const removeShopStaff = (shopId, staffId, token) =>
 // body: { pin } — no old PIN needed; ADMIN or the shop's own owner can reset it.
 export const updateStaffPin = (shopId, staffId, body, token) =>
   api.patch(`/shops/${shopId}/staff/${staffId}/pin`, { body, token });
+
+// Mark a barber on/off duty — each on-duty person is one concurrent chair.
+// ADMIN, the shop's owner, or the barber acting on their own account. Returns the
+// updated StaffResponse ({ ..., onDuty }).
+export const setStaffDuty = (shopId, staffId, onDuty, token) =>
+  api.patch(`/shops/${shopId}/staff/${staffId}/duty`, { body: { onDuty }, token });
