@@ -18,5 +18,6 @@ public record CreateShopCommand(
         String address,
         String locationUrl,
         LocalTime openingTime,
-        LocalTime closingTime) {
+        LocalTime closingTime,
+        int maxChairs) {
 }

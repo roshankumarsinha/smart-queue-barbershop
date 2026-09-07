@@ -50,6 +50,9 @@ public class ShopJpaEntity {
     @Column(name = "closing_time")
     private LocalTime closingTime;
 
+    @Column(name = "max_chairs", nullable = false)
+    private int maxChairs;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
     private ShopStatus status;
@@ -77,6 +80,7 @@ public class ShopJpaEntity {
             String locationUrl,
             LocalTime openingTime,
             LocalTime closingTime,
+            int maxChairs,
             ShopStatus status,
             Instant createdAt,
             Instant updatedAt) {
@@ -90,6 +94,7 @@ public class ShopJpaEntity {
         this.locationUrl = locationUrl;
         this.openingTime = openingTime;
         this.closingTime = closingTime;
+        this.maxChairs = maxChairs;
         this.status = status;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
@@ -133,6 +138,10 @@ public class ShopJpaEntity {
 
     public LocalTime getClosingTime() {
         return closingTime;
+    }
+
+    public int getMaxChairs() {
+        return maxChairs;
     }
 
     public ShopStatus getStatus() {

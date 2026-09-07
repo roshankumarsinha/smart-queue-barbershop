@@ -98,10 +98,16 @@ public class ShopController {
                 request.address(),
                 request.locationUrl(),
                 request.openingTime(),
-                request.closingTime())));
+                request.closingTime(),
+                request.maxChairs())));
     }
 
-    /** Closing hides the shop from {@link #findAll} and stops it accepting new queue joins. */
+    /**
+     * Closing hides the shop from {@link #findAll} and stops it accepting new queue joins.
+     * There's no manual "open" counterpart — a shop opens itself automatically when a
+     * barber (or an unstaffed shop's own owner) logs in during business hours, see
+     * {@link com.smartqueue.application.service.ShopService#checkInForLogin}.
+     */
     @Operation(
             summary = "Close a shop",
             description = "Requires ADMIN, or the SHOP_OWNER of this specific shop.")
@@ -109,15 +115,6 @@ public class ShopController {
     @PreAuthorize(SHOP_MANAGER)
     public ShopStatusResponse close(@PathVariable String id, @AuthenticationPrincipal AuthenticatedUser caller) {
         return ShopStatusResponse.from(shops.close(requireCanManage(id, caller).id()));
-    }
-
-    @Operation(
-            summary = "Reopen a shop",
-            description = "Requires ADMIN, or the SHOP_OWNER of this specific shop.")
-    @PostMapping("/{id}/open")
-    @PreAuthorize(SHOP_MANAGER)
-    public ShopStatusResponse open(@PathVariable String id, @AuthenticationPrincipal AuthenticatedUser caller) {
-        return ShopStatusResponse.from(shops.open(requireCanManage(id, caller).id()));
     }
 
     private ShopResponse toResponse(Shop shop) {

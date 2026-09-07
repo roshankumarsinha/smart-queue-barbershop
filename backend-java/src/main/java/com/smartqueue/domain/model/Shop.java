@@ -24,6 +24,7 @@ public record Shop(
         ShopStatus status,
         LocalTime openingTime,
         LocalTime closingTime,
+        int maxChairs,
         Instant createdAt,
         Instant updatedAt) {
 
@@ -50,7 +51,8 @@ public record Shop(
             String address,
             String locationUrl,
             LocalTime openingTime,
-            LocalTime closingTime) {
+            LocalTime closingTime,
+            int maxChairs) {
         return new Shop(
                 null,
                 ownerId,
@@ -63,6 +65,7 @@ public record Shop(
                 ShopStatus.NEW,
                 openingTime,
                 closingTime,
+                maxChairs,
                 null,
                 null);
     }
@@ -81,6 +84,14 @@ public record Shop(
         int chairs = Math.max(totalChairs, 1);
         double weightedAhead = waitingAhead + 0.5 * occupiedChairs;
         return (int) Math.ceil(weightedAhead / chairs) * DEFAULT_SERVICE_MINUTES;
+    }
+
+    /**
+     * How many chairs actually apply to the wait-time math: however many barbers/owner
+     * are active, capped at however many chairs physically exist.
+     */
+    public int effectiveChairCount(int activeChairCount) {
+        return Math.min(maxChairs, activeChairCount);
     }
 
     /** A shop takes customers only while OPEN — NEW and CLOSED both reject joins. */
@@ -111,7 +122,8 @@ public record Shop(
             String newAddress,
             String newLocationUrl,
             LocalTime newOpeningTime,
-            LocalTime newClosingTime) {
+            LocalTime newClosingTime,
+            int newMaxChairs) {
         return new Shop(
                 id,
                 newOwnerId,
@@ -124,6 +136,7 @@ public record Shop(
                 status,
                 newOpeningTime,
                 newClosingTime,
+                newMaxChairs,
                 createdAt,
                 updatedAt);
     }
@@ -131,6 +144,6 @@ public record Shop(
     private Shop withStatus(ShopStatus newStatus) {
         return new Shop(
                 id, ownerId, name, type, whatsappNumber, phone, address, locationUrl,
-                newStatus, openingTime, closingTime, createdAt, updatedAt);
+                newStatus, openingTime, closingTime, maxChairs, createdAt, updatedAt);
     }
 }

@@ -138,7 +138,12 @@ public class WhatsAppConversationService implements HandleWhatsAppMessageUseCase
             return;
         }
 
-        List<Shop> open = shops.findAll();
+        // status == OPEN alone only means someone opened the shop earlier today — it says
+        // nothing about whether anyone's still there. Only offer shops with a chair on duty
+        // right now, or a customer could pick one that will never actually call them in.
+        List<Shop> open = shops.findAll().stream()
+                .filter(shop -> shops.onDutyChairCount(shop.id()) > 0)
+                .toList();
         if (open.isEmpty()) {
             conversations.remove(phone);
             whatsapp.sendText(phone, "No shops are open right now — please try again later.");

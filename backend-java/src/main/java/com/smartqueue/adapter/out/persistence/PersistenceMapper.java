@@ -41,6 +41,7 @@ final class PersistenceMapper {
                 e.getStatus(),
                 e.getOpeningTime(),
                 e.getClosingTime(),
+                e.getMaxChairs(),
                 e.getCreatedAt(),
                 e.getUpdatedAt());
     }
@@ -57,6 +58,7 @@ final class PersistenceMapper {
                 s.locationUrl(),
                 s.openingTime(),
                 s.closingTime(),
+                s.maxChairs(),
                 s.status(),
                 s.createdAt(),
                 s.updatedAt());

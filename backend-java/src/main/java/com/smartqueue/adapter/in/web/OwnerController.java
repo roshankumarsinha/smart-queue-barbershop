@@ -100,7 +100,8 @@ public class OwnerController {
                 request.address(),
                 request.locationUrl(),
                 request.openingTime(),
-                request.closingTime()));
+                request.closingTime(),
+                request.maxChairs()));
         return ShopResponse.from(created, 0); // brand new — no staff registered yet
     }
 

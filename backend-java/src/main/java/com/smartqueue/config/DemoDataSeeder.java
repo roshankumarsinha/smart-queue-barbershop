@@ -22,6 +22,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.time.LocalTime;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -44,6 +45,10 @@ class DemoDataSeeder {
     private static final String DEMO_SHOP_ID = "demo-shop";
     private static final String SECOND_SHOP_ID = "demo-shop-uptown";
     private static final String NEW_SHOP_ID = "demo-shop-unopened";
+
+    // Business hours needed for the login-triggered auto-open — see ShopService#checkInForLogin.
+    private static final LocalTime BUSINESS_OPEN = LocalTime.of(9, 0);
+    private static final LocalTime BUSINESS_CLOSE = LocalTime.of(20, 0);
 
     @Bean
     ApplicationRunner seedDemoData(
@@ -71,22 +76,28 @@ class DemoDataSeeder {
                     null, Role.SHOP_OWNER, "Priya Sharma", "priya@salon.com",
                     hasher.hash("secret123"), "9000000002", null, null));
 
+            // maxChairs=1 despite two seeded barbers — demonstrates the cap actually biting
+            // (wait-time math uses at most 1 chair here even when both are on duty).
             Shop shop = ensureShop(shops, DEMO_SHOP_ID, () -> new Shop(
                     DEMO_SHOP_ID, owner.id(), "Downtown Cuts", ShopType.SALON,
                     "+10000000000", "9000000011", "221B Baker Street, Pune", null,
-                    ShopStatus.OPEN, null, null, null, null));
+                    ShopStatus.OPEN, BUSINESS_OPEN, BUSINESS_CLOSE, 1, null, null));
 
             Shop uptown = ensureShop(shops, SECOND_SHOP_ID, () -> new Shop(
                     SECOND_SHOP_ID, secondOwner.id(), "Uptown Salon", ShopType.SALON,
                     "+10000000001", "9000000012", "12 MG Road, Pune", null,
-                    ShopStatus.OPEN, null, null, null, null));
+                    ShopStatus.OPEN, BUSINESS_OPEN, BUSINESS_CLOSE, 3, null, null));
 
             // Left NEW on purpose: the "registered but not yet open" state is easy to
             // forget exists, and it must stay hidden from the customer-facing shop list.
+            // Hours are deliberately unset too — that's what keeps it from auto-opening
+            // via the owner-login rule (see ShopService#checkInForLogin) even though its
+            // owner also owns demo-shop; hours would need configuring via PATCH first,
+            // matching its "still being set up" story.
             ensureShop(shops, NEW_SHOP_ID, () -> new Shop(
                     NEW_SHOP_ID, owner.id(), "Riverside Barbers (not open yet)", ShopType.SALON,
                     null, null, "5 River Lane, Pune", null,
-                    ShopStatus.NEW, null, null, null, null));
+                    ShopStatus.NEW, null, null, 2, null, null));
 
             if (owner.shopId() == null) {
                 users.save(new User(
