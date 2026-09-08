@@ -30,6 +30,12 @@ export const ownerSchema = z.object({
 
 export const shopSchema = z.object({
   name: z.string().trim().min(2, 'Shop name is required'),
+  // Physical chair count — required, whole number ≥ 1 (mirrors CreateShopRequest's
+  // @NotNull @Positive). Caps the shop's effective chair count for wait-time math.
+  maxChairs: z
+    .string()
+    .trim()
+    .refine((v) => /^\d+$/.test(v) && Number(v) >= 1, 'Enter a whole number of chairs (1 or more)'),
   whatsappNumber: optionalPhone,
   phone: optionalPhone,
   address: z.string().trim().max(500, 'Too long').optional().or(z.literal('')),

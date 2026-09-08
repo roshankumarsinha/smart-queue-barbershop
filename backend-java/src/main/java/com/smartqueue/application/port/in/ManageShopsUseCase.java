@@ -22,7 +22,14 @@ public interface ManageShopsUseCase {
     /** Partial update — null fields on the command keep their current value. */
     Shop update(String shopId, UpdateShopCommand command);
 
-    /** Hides the shop from {@link #findAll} and stops it accepting new queue joins. */
+    /** Reopens a NEW/CLOSED shop so it takes customers again. */
+    Shop open(String shopId);
+
+    /**
+     * Hides the shop from {@link #findAll} and stops it accepting new queue joins. Closing
+     * within business hours only flips the status (a pause); closing outside hours also
+     * resets — fresh token cycle, cleared queue, all staff off duty.
+     */
     Shop close(String shopId);
 
     /**

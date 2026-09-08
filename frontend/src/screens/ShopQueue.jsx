@@ -11,7 +11,7 @@ import QueueBoard from '../components/QueueBoard';
 import { getShop } from '../api/shops';
 import { selectToken } from '../store/authSlice';
 import { getShopType } from '../config/shopTypes';
-import { getStatusStyle } from '../config/shopStatus';
+import ShopOpenToggle from '../components/ShopOpenToggle';
 
 // A shop owner's live queue for ONE of their shops, reached from either the
 // single-shop dashboard or a card in "My Shops". The board itself is the shared
@@ -31,7 +31,6 @@ export default function ShopQueue() {
   const shop = shopQuery.data;
   const meta = shop ? getShopType(shop.type) : null;
   const TypeIcon = meta?.icon ?? Scissors;
-  const st = shop ? getStatusStyle(shop.status) : null;
 
   return (
     <PageTransition>
@@ -65,16 +64,11 @@ export default function ShopQueue() {
               <Typography className="font-display" sx={{ fontSize: 30, lineHeight: 1, color: '#F3ECDF' }} noWrap>
                 {shop.name}
               </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.25 }}>
-                <Typography className="font-signage" sx={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.14em', color: 'text.secondary' }}>
-                  Live Queue
-                </Typography>
-                <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, px: 0.85, py: 0.25, borderRadius: 999, bgcolor: st.bg, color: st.color }}>
-                  <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: st.dot }} />
-                  <Typography sx={{ fontSize: 10, fontWeight: 700 }}>{st.label}</Typography>
-                </Box>
-              </Box>
+              <Typography className="font-signage" sx={{ mt: 0.25, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.14em', color: 'text.secondary' }}>
+                Live Queue
+              </Typography>
             </Box>
+            <ShopOpenToggle shop={shop} size="sm" />
           </Box>
         )}
 

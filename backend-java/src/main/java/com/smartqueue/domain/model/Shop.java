@@ -118,6 +118,16 @@ public record Shop(
     }
 
     /**
+     * Closing WITHOUT resetting — a within-hours "pause". Status flips to CLOSED but the
+     * token cycle (and, at the service level, the queue and staff duty) are left intact,
+     * so reopening resumes the same session. Contrast {@link #closed()}, which starts a
+     * fresh cycle for an end-of-session reset.
+     */
+    public Shop closedKeepingCycle() {
+        return withStatus(ShopStatus.CLOSED);
+    }
+
+    /**
      * A copy with edited profile fields. Every argument is "the new value", already
      * merged by the caller — a null here clears the field rather than leaving it alone,
      * so partial-update semantics belong in the service, not here. {@code status},

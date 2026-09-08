@@ -110,18 +110,40 @@ public class ShopService implements ManageShopsUseCase {
         return incoming != null ? incoming : current;
     }
 
+    @Override
+    @Transactional
+    public Shop open(String shopId) {
+        return shops.save(findById(shopId).opened());
+    }
+
     /**
-     * Closing also starts a new token cycle ({@link Shop#closed}), drops anyone still
-     * WAITING (nothing left for them to wait for — carrying them into the new cycle would
-     * let their old token collide with a fresh one), and takes everyone currently working
-     * this shop off duty, i.e. "logs them out" in the only sense that's meaningful with
-     * stateless JWTs (no server-side session to actually revoke).
+     * Two flavours of close, decided by the clock:
+     *
+     * <ul>
+     *   <li><b>Within business hours</b> — a pause. Status flips to CLOSED and nothing else
+     *       changes: the token cycle, the queue, and everyone's duty state are all left
+     *       intact, so reopening resumes exactly where it left off.</li>
+     *   <li><b>Outside business hours</b> — an end-of-session reset. A new token cycle starts
+     *       ({@link Shop#closed}), the whole queue is cleared (everyone still WAITING → LEFT
+     *       and anyone IN_SERVICE → DONE), and everyone working this shop goes off duty. The
+     *       next session's first customer gets token 1 again, into an empty queue.</li>
+     * </ul>
+     *
+     * A shop with no opening/closing hours set counts as "outside hours" ({@link #isWithinHours}),
+     * so closing it always resets.
      */
     @Override
     @Transactional
     public Shop close(String shopId) {
-        Shop closed = shops.save(findById(shopId).closed());
+        Shop shop = findById(shopId);
+        if (isWithinHours(shop, LocalTime.now())) {
+            return shops.save(shop.closedKeepingCycle());
+        }
+
+        Shop closed = shops.save(shop.closed());
         entries.findWaitingOrdered(shopId).forEach(e -> entries.save(e.withStatus(QueueStatus.LEFT)));
+        entries.findAllByStatus(shopId, QueueStatus.IN_SERVICE)
+                .forEach(e -> entries.save(e.withStatus(QueueStatus.DONE)));
         goOffDutyForShop(closed);
         return closed;
     }

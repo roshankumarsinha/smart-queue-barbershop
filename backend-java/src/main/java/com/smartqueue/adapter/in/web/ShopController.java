@@ -103,10 +103,25 @@ public class ShopController {
     }
 
     /**
-     * Closing hides the shop from {@link #findAll} and stops it accepting new queue joins.
-     * There's no manual "open" counterpart — a shop opens itself automatically when a
-     * barber (or an unstaffed shop's own owner) logs in during business hours, see
+     * Reopens a NEW/CLOSED shop so it takes customers again. This is the owner-driven
+     * counterpart to {@link #close}; a shop also opens itself automatically when a barber
+     * (or an unstaffed shop's own owner) logs in during business hours, see
      * {@link com.smartqueue.application.service.ShopService#checkInForLogin}.
+     */
+    @Operation(
+            summary = "Open a shop",
+            description = "Requires ADMIN, or the SHOP_OWNER of this specific shop.")
+    @PostMapping("/{id}/open")
+    @PreAuthorize(SHOP_MANAGER)
+    public ShopStatusResponse open(@PathVariable String id, @AuthenticationPrincipal AuthenticatedUser caller) {
+        return ShopStatusResponse.from(shops.open(requireCanManage(id, caller).id()));
+    }
+
+    /**
+     * Closing hides the shop from {@link #findAll} and stops it accepting new queue joins.
+     * Within business hours it's just a pause (status only); outside hours it also resets
+     * the shop — fresh token cycle, cleared queue, all staff off duty — see
+     * {@link com.smartqueue.application.service.ShopService#close}.
      */
     @Operation(
             summary = "Close a shop",

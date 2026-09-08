@@ -3,7 +3,7 @@ import { useSelector } from 'react-redux';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Box, CircularProgress, Typography } from '@mui/material';
-import { Store, MessageCircle, Phone, MapPin, Link2, DoorOpen, DoorClosed, Plus } from 'lucide-react';
+import { Store, MessageCircle, Phone, MapPin, Link2, DoorOpen, DoorClosed, Plus, Armchair } from 'lucide-react';
 import TicketDialog from './TicketDialog';
 import TicketField from './form/TicketField';
 import ShopTypePicker from './form/ShopTypePicker';
@@ -16,6 +16,7 @@ import { DEFAULT_SHOP_TYPE } from '../config/shopTypes';
 
 const EMPTY = {
   name: '',
+  maxChairs: '1',
   whatsappNumber: '',
   phone: '',
   address: '',
@@ -93,6 +94,7 @@ export default function RegisterShopDialog({ open, onClose, ownerId, ownerName, 
       locationUrl: clean(values.locationUrl),
       openingTime: clean(values.openingTime),
       closingTime: clean(values.closingTime),
+      maxChairs: Number(values.maxChairs),
     });
   }
 
@@ -117,6 +119,19 @@ export default function RegisterShopDialog({ open, onClose, ownerId, ownerName, 
         />
 
         <ShopTypePicker value={type} onChange={setType} />
+
+        <TicketField
+          name="maxChairs"
+          label="Number of chairs"
+          icon={Armchair}
+          type="number"
+          inputMode="numeric"
+          placeholder="e.g. 3"
+          value={values.maxChairs}
+          error={errors.maxChairs}
+          shakeSignal={shakes.maxChairs ?? 0}
+          onChange={handleChange}
+        />
 
         <TicketField
           name="whatsappNumber"
