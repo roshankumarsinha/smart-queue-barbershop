@@ -21,13 +21,20 @@ public record QueueEntry(
         int position,
         Instant joinedAt,
         Instant updatedAt,
-        String servedBy) {
+        String servedBy,
+        int tokenCycle) {
 
-    /** A not-yet-persisted entry at the back of the queue, not yet claimed by anyone. */
+    /**
+     * A not-yet-persisted entry at the back of the queue, not yet claimed by anyone.
+     * {@code tokenCycle} is the shop's current cycle at join time (see {@code Shop#tokenCycle}) —
+     * what makes {@code token} unique only within that cycle, not for all time.
+     */
     public static QueueEntry joining(
-            String shopId, int token, int position, ServiceType service, String phone, String customerName) {
+            String shopId, int token, int position, ServiceType service, String phone, String customerName,
+            int tokenCycle) {
         return new QueueEntry(
-                null, shopId, token, customerName, phone, service, QueueStatus.WAITING, position, null, null, null);
+                null, shopId, token, customerName, phone, service, QueueStatus.WAITING, position, null, null, null,
+                tokenCycle);
     }
 
     /**
@@ -36,20 +43,21 @@ public record QueueEntry(
      */
     public QueueEntry withStatus(QueueStatus newStatus) {
         return new QueueEntry(
-                id, shopId, token, customerName, phone, service, newStatus, position, joinedAt, updatedAt, servedBy);
+                id, shopId, token, customerName, phone, service, newStatus, position, joinedAt, updatedAt, servedBy,
+                tokenCycle);
     }
 
     /** A barber claims this entry into their chair. */
     public QueueEntry claimedBy(String staffId) {
         return new QueueEntry(
                 id, shopId, token, customerName, phone, service,
-                QueueStatus.IN_SERVICE, position, joinedAt, updatedAt, staffId);
+                QueueStatus.IN_SERVICE, position, joinedAt, updatedAt, staffId, tokenCycle);
     }
 
     /** Send this customer back to the end of the waiting list, unclaimed. */
     public QueueEntry requeuedAt(int newPosition) {
         return new QueueEntry(
                 id, shopId, token, customerName, phone, service,
-                QueueStatus.WAITING, newPosition, joinedAt, updatedAt, null);
+                QueueStatus.WAITING, newPosition, joinedAt, updatedAt, null, tokenCycle);
     }
 }

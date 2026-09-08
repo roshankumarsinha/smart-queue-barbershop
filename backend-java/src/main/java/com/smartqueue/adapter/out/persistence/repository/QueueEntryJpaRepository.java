@@ -47,8 +47,8 @@ public interface QueueEntryJpaRepository extends JpaRepository<QueueEntryJpaEnti
 
     int countByShopIdAndStatusAndPositionLessThan(String shopId, QueueStatus status, int position);
 
-    @Query("select max(e.token) from QueueEntryJpaEntity e where e.shopId = :shopId")
-    Optional<Integer> findHighestToken(@Param("shopId") String shopId);
+    @Query("select max(e.token) from QueueEntryJpaEntity e where e.shopId = :shopId and e.tokenCycle = :tokenCycle")
+    Optional<Integer> findHighestToken(@Param("shopId") String shopId, @Param("tokenCycle") int tokenCycle);
 
     @Query("""
             select max(e.position) from QueueEntryJpaEntity e

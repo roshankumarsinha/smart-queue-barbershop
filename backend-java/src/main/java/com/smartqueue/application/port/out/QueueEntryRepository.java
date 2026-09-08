@@ -49,8 +49,12 @@ public interface QueueEntryRepository {
      */
     int countWaitingAhead(String shopId, int position);
 
-    /** Highest token ever issued by this shop — tokens never get reused. */
-    Optional<Integer> highestToken(String shopId);
+    /**
+     * Highest token issued by this shop in the given token cycle — tokens never get reused
+     * within a cycle, but a new cycle (started when the shop closes, see {@code Shop#closed})
+     * restarts numbering from scratch.
+     */
+    Optional<Integer> highestToken(String shopId, int tokenCycle);
 
     /** Highest position among active entries — the back of the current queue. */
     Optional<Integer> highestActivePosition(String shopId);

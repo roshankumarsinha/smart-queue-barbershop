@@ -3,8 +3,10 @@ package com.smartqueue.application.service;
 import com.smartqueue.application.port.in.ManageShopsUseCase;
 import com.smartqueue.application.port.in.command.CreateShopCommand;
 import com.smartqueue.application.port.in.command.UpdateShopCommand;
+import com.smartqueue.application.port.out.QueueEntryRepository;
 import com.smartqueue.application.port.out.ShopRepository;
 import com.smartqueue.application.port.out.UserRepository;
+import com.smartqueue.domain.QueueStatus;
 import com.smartqueue.domain.Role;
 import com.smartqueue.domain.exception.ConflictException;
 import com.smartqueue.domain.exception.NotFoundException;
@@ -23,10 +25,12 @@ public class ShopService implements ManageShopsUseCase {
 
     private final ShopRepository shops;
     private final UserRepository users;
+    private final QueueEntryRepository entries;
 
-    public ShopService(ShopRepository shops, UserRepository users) {
+    public ShopService(ShopRepository shops, UserRepository users, QueueEntryRepository entries) {
         this.shops = shops;
         this.users = users;
+        this.entries = entries;
     }
 
     @Override
@@ -106,10 +110,30 @@ public class ShopService implements ManageShopsUseCase {
         return incoming != null ? incoming : current;
     }
 
+    /**
+     * Closing also starts a new token cycle ({@link Shop#closed}), drops anyone still
+     * WAITING (nothing left for them to wait for — carrying them into the new cycle would
+     * let their old token collide with a fresh one), and takes everyone currently working
+     * this shop off duty, i.e. "logs them out" in the only sense that's meaningful with
+     * stateless JWTs (no server-side session to actually revoke).
+     */
     @Override
     @Transactional
     public Shop close(String shopId) {
-        return shops.save(findById(shopId).closed());
+        Shop closed = shops.save(findById(shopId).closed());
+        entries.findWaitingOrdered(shopId).forEach(e -> entries.save(e.withStatus(QueueStatus.LEFT)));
+        goOffDutyForShop(closed);
+        return closed;
+    }
+
+    /** Barbers, and the owner too if they're actually eligible for this shop (see {@link #eligibleShopIdsForLogin}). */
+    private void goOffDutyForShop(Shop shop) {
+        users.findByShopIdAndRoleAndOnDutyTrue(shop.id(), Role.BARBER_STAFF)
+                .forEach(u -> users.save(u.onDutyOff()));
+        boolean ownerEligible = users.findByShopIdAndRole(shop.id(), Role.BARBER_STAFF).isEmpty();
+        if (ownerEligible) {
+            users.findById(shop.ownerId()).filter(User::onDuty).ifPresent(u -> users.save(u.onDutyOff()));
+        }
     }
 
     @Override

@@ -25,6 +25,7 @@ public record Shop(
         LocalTime openingTime,
         LocalTime closingTime,
         int maxChairs,
+        int tokenCycle,
         Instant createdAt,
         Instant updatedAt) {
 
@@ -66,6 +67,7 @@ public record Shop(
                 openingTime,
                 closingTime,
                 maxChairs,
+                1,
                 null,
                 null);
     }
@@ -103,8 +105,16 @@ public record Shop(
         return withStatus(ShopStatus.OPEN);
     }
 
+    /**
+     * Closing also starts a new token cycle — tomorrow's (or the next session's) first
+     * customer gets token 1 again, without colliding with tokens already issued in this
+     * cycle (see the per-(shop, cycle) uniqueness index). Doesn't reuse {@link #withStatus}
+     * since that one leaves every other field untouched.
+     */
     public Shop closed() {
-        return withStatus(ShopStatus.CLOSED);
+        return new Shop(
+                id, ownerId, name, type, whatsappNumber, phone, address, locationUrl,
+                ShopStatus.CLOSED, openingTime, closingTime, maxChairs, tokenCycle + 1, createdAt, updatedAt);
     }
 
     /**
@@ -137,6 +147,7 @@ public record Shop(
                 newOpeningTime,
                 newClosingTime,
                 newMaxChairs,
+                tokenCycle,
                 createdAt,
                 updatedAt);
     }
@@ -144,6 +155,6 @@ public record Shop(
     private Shop withStatus(ShopStatus newStatus) {
         return new Shop(
                 id, ownerId, name, type, whatsappNumber, phone, address, locationUrl,
-                newStatus, openingTime, closingTime, maxChairs, createdAt, updatedAt);
+                newStatus, openingTime, closingTime, maxChairs, tokenCycle, createdAt, updatedAt);
     }
 }

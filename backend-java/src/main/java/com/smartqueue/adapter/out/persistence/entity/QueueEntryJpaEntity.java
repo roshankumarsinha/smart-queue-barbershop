@@ -59,6 +59,10 @@ public class QueueEntryJpaEntity {
     @Column(name = "served_by")
     private String servedBy;
 
+    /** Which of the shop's token cycles this entry was issued in — see {@code Shop#tokenCycle}. */
+    @Column(name = "token_cycle", nullable = false)
+    private int tokenCycle;
+
     protected QueueEntryJpaEntity() {
         // for JPA
     }
@@ -74,7 +78,8 @@ public class QueueEntryJpaEntity {
             int position,
             Instant joinedAt,
             Instant updatedAt,
-            String servedBy) {
+            String servedBy,
+            int tokenCycle) {
         this.id = id;
         this.shopId = shopId;
         this.token = token;
@@ -86,6 +91,7 @@ public class QueueEntryJpaEntity {
         this.joinedAt = joinedAt;
         this.updatedAt = updatedAt;
         this.servedBy = servedBy;
+        this.tokenCycle = tokenCycle;
     }
 
     public String getId() {
@@ -130,5 +136,9 @@ public class QueueEntryJpaEntity {
 
     public String getServedBy() {
         return servedBy;
+    }
+
+    public int getTokenCycle() {
+        return tokenCycle;
     }
 }

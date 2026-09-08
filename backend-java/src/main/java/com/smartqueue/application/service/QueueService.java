@@ -124,11 +124,11 @@ public class QueueService
             throw new ConflictException("This shop isn't staffed right now — try again later");
         }
 
-        int token = entries.highestToken(shop.id()).orElse(0) + 1;
+        int token = entries.highestToken(shop.id(), shop.tokenCycle()).orElse(0) + 1;
         int position = entries.highestActivePosition(shop.id()).orElse(0) + 1;
 
         QueueEntry entry = entries.save(QueueEntry.joining(
-                shop.id(), token, position, command.service(), command.phone(), command.name()));
+                shop.id(), token, position, command.service(), command.phone(), command.name(), shop.tokenCycle()));
 
         int ahead = entries.countWaitingAhead(shop.id(), entry.position());
         int wait = shop.estimatedWaitMinutes(ahead, occupiedChairCount(shop.id()), effectiveChairCount(shop));

@@ -81,12 +81,12 @@ class DemoDataSeeder {
             Shop shop = ensureShop(shops, DEMO_SHOP_ID, () -> new Shop(
                     DEMO_SHOP_ID, owner.id(), "Downtown Cuts", ShopType.SALON,
                     "+10000000000", "9000000011", "221B Baker Street, Pune", null,
-                    ShopStatus.OPEN, BUSINESS_OPEN, BUSINESS_CLOSE, 1, null, null));
+                    ShopStatus.OPEN, BUSINESS_OPEN, BUSINESS_CLOSE, 1, 1, null, null));
 
             Shop uptown = ensureShop(shops, SECOND_SHOP_ID, () -> new Shop(
                     SECOND_SHOP_ID, secondOwner.id(), "Uptown Salon", ShopType.SALON,
                     "+10000000001", "9000000012", "12 MG Road, Pune", null,
-                    ShopStatus.OPEN, BUSINESS_OPEN, BUSINESS_CLOSE, 3, null, null));
+                    ShopStatus.OPEN, BUSINESS_OPEN, BUSINESS_CLOSE, 3, 1, null, null));
 
             // Left NEW on purpose: the "registered but not yet open" state is easy to
             // forget exists, and it must stay hidden from the customer-facing shop list.
@@ -97,7 +97,7 @@ class DemoDataSeeder {
             ensureShop(shops, NEW_SHOP_ID, () -> new Shop(
                     NEW_SHOP_ID, owner.id(), "Riverside Barbers (not open yet)", ShopType.SALON,
                     null, null, "5 River Lane, Pune", null,
-                    ShopStatus.NEW, null, null, 2, null, null));
+                    ShopStatus.NEW, null, null, 2, 1, null, null));
 
             if (owner.shopId() == null) {
                 users.save(new User(
@@ -148,7 +148,7 @@ class DemoDataSeeder {
      * live queue would collide on the per-shop unique token.
      */
     private static void seedQueue(QueueEntryRepository queueEntries, String shopId, String onDutyBarberId) {
-        if (queueEntries.highestToken(shopId).isPresent()) {
+        if (queueEntries.highestToken(shopId, 1).isPresent()) {
             return;
         }
         List<String[]> customers = List.of(
@@ -166,7 +166,7 @@ class DemoDataSeeder {
         for (int i = 0; i < customers.size(); i++) {
             String[] customer = customers.get(i);
             QueueEntry entry = QueueEntry.joining(
-                    shopId, i + 1, i + 1, services[i], customer[1], customer[0]);
+                    shopId, i + 1, i + 1, services[i], customer[1], customer[0], 1);
             // The first customer is already being served; the rest are the waiting line.
             queueEntries.save(i == 0 ? entry.claimedBy(onDutyBarberId) : entry);
         }
