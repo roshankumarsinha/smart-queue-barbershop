@@ -74,7 +74,7 @@ public class QueueService
         Shop shop = requireShop(shopId);
         List<QueueEntry> serving = entries.findAllByStatus(shopId, QueueStatus.IN_SERVICE);
         List<QueueEntry> waiting = entries.findWaitingOrdered(shopId);
-        int onDutyCount = onDutyCount(shop);
+        int onDutyCount = rawOnDutyCount(shop);
 
         return new QueueSnapshot(
                 shopId,
@@ -82,7 +82,7 @@ public class QueueService
                 waiting,
                 waiting.size(),
                 onDutyCount,
-                shop.estimatedWaitMinutes(waiting.size(), serving.size(), onDutyCount));
+                shop.estimatedWaitMinutes(waiting.size(), serving.size(), shop.effectiveChairCount(onDutyCount)));
     }
 
     /**
@@ -100,7 +100,7 @@ public class QueueService
 
         Shop shop = requireShop(entry.shopId());
         int ahead = entries.countWaitingAhead(shop.id(), entry.position());
-        int wait = shop.estimatedWaitMinutes(ahead, occupiedChairCount(shop.id()), onDutyCount(shop));
+        int wait = shop.estimatedWaitMinutes(ahead, occupiedChairCount(shop.id()), effectiveChairCount(shop));
         return new QueueEntryStatus(entry, ahead, wait);
     }
 
@@ -109,7 +109,10 @@ public class QueueService
     /**
      * Customer self-join (normally via WhatsApp) and staff walk-in share this path — a
      * closed shop rejects both, since neither a customer messaging in nor staff adding a
-     * walk-in should be able to queue up somewhere that isn't taking customers.
+     * walk-in should be able to queue up somewhere that isn't taking customers. Same for
+     * an open-but-unstaffed shop: {@code status == OPEN} alone only means someone opened
+     * it earlier today, not that anyone's still here — nobody could ever be called into a
+     * chair with zero on-duty, so joining (or adding a walk-in) is refused either way.
      */
     @Override
     public JoinQueueResult join(JoinQueueCommand command) {
@@ -117,15 +120,18 @@ public class QueueService
         if (!shop.active()) {
             throw new ConflictException("This shop is currently closed");
         }
+        if (rawOnDutyCount(shop) == 0) {
+            throw new ConflictException("This shop isn't staffed right now — try again later");
+        }
 
-        int token = entries.highestToken(shop.id()).orElse(0) + 1;
+        int token = entries.highestToken(shop.id(), shop.tokenCycle()).orElse(0) + 1;
         int position = entries.highestActivePosition(shop.id()).orElse(0) + 1;
 
         QueueEntry entry = entries.save(QueueEntry.joining(
-                shop.id(), token, position, command.service(), command.phone(), command.name()));
+                shop.id(), token, position, command.service(), command.phone(), command.name(), shop.tokenCycle()));
 
         int ahead = entries.countWaitingAhead(shop.id(), entry.position());
-        int wait = shop.estimatedWaitMinutes(ahead, occupiedChairCount(shop.id()), onDutyCount(shop));
+        int wait = shop.estimatedWaitMinutes(ahead, occupiedChairCount(shop.id()), effectiveChairCount(shop));
 
         notifications.notify(
                 entry,
@@ -239,13 +245,21 @@ public class QueueService
     // --- Helpers ---------------------------------------------------------------
 
     /**
-     * How many chairs this shop currently has open — its on-duty barbers, plus its owner if
-     * they're also working the floor (an owner can go on duty just like a barber).
+     * How many barbers/owner are actually on duty right now — the honest headcount, e.g.
+     * shown as-is via {@code QueueSnapshot.onDutyStaffCount}. Wait-time math doesn't use
+     * this directly; see {@link #effectiveChairCount}, which caps it at the shop's
+     * configured {@code maxChairs} if one is set — a shop with 2 physical chairs is still
+     * a 2-chair shop even if 5 barbers are somehow on duty at once.
      */
-    private int onDutyCount(Shop shop) {
+    private int rawOnDutyCount(Shop shop) {
         int barbers = users.findByShopIdAndRoleAndOnDutyTrue(shop.id(), Role.BARBER_STAFF).size();
         boolean ownerOnDuty = users.findById(shop.ownerId()).map(User::onDuty).orElse(false);
         return barbers + (ownerOnDuty ? 1 : 0);
+    }
+
+    /** The chair count that actually feeds wait-time math — on-duty headcount, capped at maxChairs. */
+    private int effectiveChairCount(Shop shop) {
+        return shop.effectiveChairCount(rawOnDutyCount(shop));
     }
 
     /** How many of those chairs are occupied right now — feeds the half-weight in the wait estimate. */
@@ -285,7 +299,7 @@ public class QueueService
             return false;
         }
         int ahead = entries.countWaitingAhead(shop.id(), entry.position());
-        int wait = shop.estimatedWaitMinutes(ahead, occupiedChairCount(shop.id()), onDutyCount(shop));
+        int wait = shop.estimatedWaitMinutes(ahead, occupiedChairCount(shop.id()), effectiveChairCount(shop));
         return wait <= HEADS_UP_THRESHOLD_MINUTES;
     }
 
@@ -297,7 +311,7 @@ public class QueueService
      * departing entry was itself on deck (see {@link #isOnDeck}).
      */
     private void notifyOnDeck(Shop shop) {
-        int onDutyCount = onDutyCount(shop);
+        int onDutyCount = effectiveChairCount(shop);
         int occupiedChairs = occupiedChairCount(shop.id());
         List<QueueEntry> waiting = entries.findWaitingOrdered(shop.id());
         for (int i = 0; i < waiting.size(); i++) {

@@ -18,5 +18,6 @@ public record UpdateShopCommand(
         String address,
         String locationUrl,
         LocalTime openingTime,
-        LocalTime closingTime) {
+        LocalTime closingTime,
+        Integer maxChairs) {
 }

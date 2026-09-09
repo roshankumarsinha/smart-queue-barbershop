@@ -13,7 +13,8 @@ import {
   Typography,
 } from '@mui/material';
 import { Check, LogOut, Scissors } from 'lucide-react';
-import { logout, selectUser } from '../store/authSlice';
+import { logout, selectUser, selectToken } from '../store/authSlice';
+import { setStaffDuty } from '../api/staff';
 import { getRole } from '../config/roles';
 import { staggerContainer, staggerItem } from '../lib/motion';
 import BarberPole from './BarberPole';
@@ -107,9 +108,16 @@ export default function DashboardShell({ roleKey, children }) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const user = useSelector(selectUser);
+  const token = useSelector(selectToken);
   const role = getRole(roleKey);
 
   function handleLogout() {
+    // Going off the floor means giving up your chair — clear duty on the way out so
+    // a logged-out barber (or floor-working owner) doesn't keep counting as a chair.
+    // Fire-and-forget with the still-valid token; the session clears immediately.
+    if (user?.onDuty && user?.shopId && user?.id) {
+      setStaffDuty(user.shopId, user.id, false, token).catch(() => {});
+    }
     dispatch(logout());
     navigate('/login');
   }

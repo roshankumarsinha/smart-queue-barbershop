@@ -19,6 +19,7 @@ public record ShopResponse(
         ShopStatus status,
         LocalTime openingTime,
         LocalTime closingTime,
+        int maxChairs,
         Instant createdAt,
         Instant updatedAt,
         int onDutyStaffCount) {
@@ -36,6 +37,7 @@ public record ShopResponse(
                 s.status(),
                 s.openingTime(),
                 s.closingTime(),
+                s.maxChairs(),
                 s.createdAt(),
                 s.updatedAt(),
                 onDutyStaffCount);

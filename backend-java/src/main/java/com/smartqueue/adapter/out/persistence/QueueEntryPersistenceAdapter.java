@@ -75,8 +75,8 @@ class QueueEntryPersistenceAdapter implements QueueEntryRepository {
     }
 
     @Override
-    public Optional<Integer> highestToken(String shopId) {
-        return entries.findHighestToken(shopId);
+    public Optional<Integer> highestToken(String shopId, int tokenCycle) {
+        return entries.findHighestToken(shopId, tokenCycle);
     }
 
     @Override

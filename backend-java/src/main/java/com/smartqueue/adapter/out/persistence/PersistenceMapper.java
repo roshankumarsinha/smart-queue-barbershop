@@ -41,6 +41,8 @@ final class PersistenceMapper {
                 e.getStatus(),
                 e.getOpeningTime(),
                 e.getClosingTime(),
+                e.getMaxChairs(),
+                e.getTokenCycle(),
                 e.getCreatedAt(),
                 e.getUpdatedAt());
     }
@@ -57,6 +59,8 @@ final class PersistenceMapper {
                 s.locationUrl(),
                 s.openingTime(),
                 s.closingTime(),
+                s.maxChairs(),
+                s.tokenCycle(),
                 s.status(),
                 s.createdAt(),
                 s.updatedAt());
@@ -102,7 +106,8 @@ final class PersistenceMapper {
                 e.getPosition(),
                 e.getJoinedAt(),
                 e.getUpdatedAt(),
-                e.getServedBy());
+                e.getServedBy(),
+                e.getTokenCycle());
     }
 
     static QueueEntryJpaEntity toEntity(QueueEntry q) {
@@ -117,7 +122,8 @@ final class PersistenceMapper {
                 q.position(),
                 q.joinedAt(),
                 q.updatedAt(),
-                q.servedBy());
+                q.servedBy(),
+                q.tokenCycle());
     }
 
     static CatalogService toDomain(ServiceCatalogJpaEntity e) {

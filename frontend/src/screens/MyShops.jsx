@@ -10,7 +10,7 @@ import PageTransition from '../components/PageTransition';
 import { getMyShops } from '../api/shops';
 import { selectToken } from '../store/authSlice';
 import { getShopType } from '../config/shopTypes';
-import { getStatusStyle } from '../config/shopStatus';
+import ShopOpenToggle from '../components/ShopOpenToggle';
 import { tileGrid, tileItem } from '../lib/motion';
 
 function formatTime(t) {
@@ -99,7 +99,6 @@ function ShopAction({ icon: Icon, label, onClick, accent = 'brass' }) {
 function ShopCard({ shop, navigate }) {
   const meta = getShopType(shop.type);
   const Icon = meta.icon;
-  const st = getStatusStyle(shop.status);
   const hours = shop.openingTime && shop.closingTime
     ? `${formatTime(shop.openingTime)} – ${formatTime(shop.closingTime)}`
     : null;
@@ -144,10 +143,7 @@ function ShopCard({ shop, navigate }) {
             {meta.label}
           </Typography>
         </Box>
-        <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, px: 1, py: 0.4, borderRadius: 999, flexShrink: 0, bgcolor: st.bg, color: st.color }}>
-          <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: st.dot }} />
-          <Typography sx={{ fontSize: 11, fontWeight: 700 }}>{st.label}</Typography>
-        </Box>
+        <ShopOpenToggle shop={shop} size="sm" />
       </Box>
 
       {(hours || shop.whatsappNumber || shop.locationUrl) && (

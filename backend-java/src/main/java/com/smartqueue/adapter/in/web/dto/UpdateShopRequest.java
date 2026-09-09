@@ -1,6 +1,7 @@
 package com.smartqueue.adapter.in.web.dto;
 
 import com.smartqueue.domain.ShopType;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalTime;
@@ -19,5 +20,6 @@ public record UpdateShopRequest(
         String address,
         String locationUrl,
         LocalTime openingTime,
-        LocalTime closingTime) {
+        LocalTime closingTime,
+        @Positive Integer maxChairs) {
 }

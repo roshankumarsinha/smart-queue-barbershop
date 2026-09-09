@@ -24,6 +24,8 @@ public record Shop(
         ShopStatus status,
         LocalTime openingTime,
         LocalTime closingTime,
+        int maxChairs,
+        int tokenCycle,
         Instant createdAt,
         Instant updatedAt) {
 
@@ -50,7 +52,8 @@ public record Shop(
             String address,
             String locationUrl,
             LocalTime openingTime,
-            LocalTime closingTime) {
+            LocalTime closingTime,
+            int maxChairs) {
         return new Shop(
                 null,
                 ownerId,
@@ -63,6 +66,8 @@ public record Shop(
                 ShopStatus.NEW,
                 openingTime,
                 closingTime,
+                maxChairs,
+                1,
                 null,
                 null);
     }
@@ -83,6 +88,14 @@ public record Shop(
         return (int) Math.ceil(weightedAhead / chairs) * DEFAULT_SERVICE_MINUTES;
     }
 
+    /**
+     * How many chairs actually apply to the wait-time math: however many barbers/owner
+     * are active, capped at however many chairs physically exist.
+     */
+    public int effectiveChairCount(int activeChairCount) {
+        return Math.min(maxChairs, activeChairCount);
+    }
+
     /** A shop takes customers only while OPEN — NEW and CLOSED both reject joins. */
     public boolean active() {
         return status == ShopStatus.OPEN;
@@ -92,7 +105,25 @@ public record Shop(
         return withStatus(ShopStatus.OPEN);
     }
 
+    /**
+     * Closing also starts a new token cycle — tomorrow's (or the next session's) first
+     * customer gets token 1 again, without colliding with tokens already issued in this
+     * cycle (see the per-(shop, cycle) uniqueness index). Doesn't reuse {@link #withStatus}
+     * since that one leaves every other field untouched.
+     */
     public Shop closed() {
+        return new Shop(
+                id, ownerId, name, type, whatsappNumber, phone, address, locationUrl,
+                ShopStatus.CLOSED, openingTime, closingTime, maxChairs, tokenCycle + 1, createdAt, updatedAt);
+    }
+
+    /**
+     * Closing WITHOUT resetting — a within-hours "pause". Status flips to CLOSED but the
+     * token cycle (and, at the service level, the queue and staff duty) are left intact,
+     * so reopening resumes the same session. Contrast {@link #closed()}, which starts a
+     * fresh cycle for an end-of-session reset.
+     */
+    public Shop closedKeepingCycle() {
         return withStatus(ShopStatus.CLOSED);
     }
 
@@ -111,7 +142,8 @@ public record Shop(
             String newAddress,
             String newLocationUrl,
             LocalTime newOpeningTime,
-            LocalTime newClosingTime) {
+            LocalTime newClosingTime,
+            int newMaxChairs) {
         return new Shop(
                 id,
                 newOwnerId,
@@ -124,6 +156,8 @@ public record Shop(
                 status,
                 newOpeningTime,
                 newClosingTime,
+                newMaxChairs,
+                tokenCycle,
                 createdAt,
                 updatedAt);
     }
@@ -131,6 +165,6 @@ public record Shop(
     private Shop withStatus(ShopStatus newStatus) {
         return new Shop(
                 id, ownerId, name, type, whatsappNumber, phone, address, locationUrl,
-                newStatus, openingTime, closingTime, createdAt, updatedAt);
+                newStatus, openingTime, closingTime, maxChairs, tokenCycle, createdAt, updatedAt);
     }
 }

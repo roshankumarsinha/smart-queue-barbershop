@@ -3,16 +3,20 @@ package com.smartqueue.application.service;
 import com.smartqueue.application.port.in.ManageShopsUseCase;
 import com.smartqueue.application.port.in.command.CreateShopCommand;
 import com.smartqueue.application.port.in.command.UpdateShopCommand;
+import com.smartqueue.application.port.out.QueueEntryRepository;
 import com.smartqueue.application.port.out.ShopRepository;
 import com.smartqueue.application.port.out.UserRepository;
+import com.smartqueue.domain.QueueStatus;
 import com.smartqueue.domain.Role;
 import com.smartqueue.domain.exception.ConflictException;
 import com.smartqueue.domain.exception.NotFoundException;
+import com.smartqueue.domain.ShopStatus;
 import com.smartqueue.domain.model.Shop;
 import com.smartqueue.domain.model.User;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalTime;
 import java.util.List;
 
 @Service
@@ -21,10 +25,12 @@ public class ShopService implements ManageShopsUseCase {
 
     private final ShopRepository shops;
     private final UserRepository users;
+    private final QueueEntryRepository entries;
 
-    public ShopService(ShopRepository shops, UserRepository users) {
+    public ShopService(ShopRepository shops, UserRepository users, QueueEntryRepository entries) {
         this.shops = shops;
         this.users = users;
+        this.entries = entries;
     }
 
     @Override
@@ -58,7 +64,8 @@ public class ShopService implements ManageShopsUseCase {
                 command.address(),
                 command.locationUrl(),
                 command.openingTime(),
-                command.closingTime());
+                command.closingTime(),
+                command.maxChairs());
         if (shop.whatsappNumber() != null && shops.existsByWhatsappNumber(shop.whatsappNumber())) {
             throw new ConflictException("A shop with this WhatsApp number already exists");
         }
@@ -83,7 +90,8 @@ public class ShopService implements ManageShopsUseCase {
                 merge(command.address(), existing.address()),
                 merge(command.locationUrl(), existing.locationUrl()),
                 merge(command.openingTime(), existing.openingTime()),
-                merge(command.closingTime(), existing.closingTime()));
+                merge(command.closingTime(), existing.closingTime()),
+                merge(command.maxChairs(), existing.maxChairs()));
 
         if (!updated.ownerId().equals(existing.ownerId())) {
             // Without this the reassignment would fail as a raw FK violation (500).
@@ -104,14 +112,50 @@ public class ShopService implements ManageShopsUseCase {
 
     @Override
     @Transactional
-    public Shop close(String shopId) {
-        return shops.save(findById(shopId).closed());
-    }
-
-    @Override
-    @Transactional
     public Shop open(String shopId) {
         return shops.save(findById(shopId).opened());
+    }
+
+    /**
+     * Two flavours of close, decided by the clock:
+     *
+     * <ul>
+     *   <li><b>Within business hours</b> — a pause. Status flips to CLOSED and nothing else
+     *       changes: the token cycle, the queue, and everyone's duty state are all left
+     *       intact, so reopening resumes exactly where it left off.</li>
+     *   <li><b>Outside business hours</b> — an end-of-session reset. A new token cycle starts
+     *       ({@link Shop#closed}), the whole queue is cleared (everyone still WAITING → LEFT
+     *       and anyone IN_SERVICE → DONE), and everyone working this shop goes off duty. The
+     *       next session's first customer gets token 1 again, into an empty queue.</li>
+     * </ul>
+     *
+     * A shop with no opening/closing hours set counts as "outside hours" ({@link #isWithinHours}),
+     * so closing it always resets.
+     */
+    @Override
+    @Transactional
+    public Shop close(String shopId) {
+        Shop shop = findById(shopId);
+        if (isWithinHours(shop, LocalTime.now())) {
+            return shops.save(shop.closedKeepingCycle());
+        }
+
+        Shop closed = shops.save(shop.closed());
+        entries.findWaitingOrdered(shopId).forEach(e -> entries.save(e.withStatus(QueueStatus.LEFT)));
+        entries.findAllByStatus(shopId, QueueStatus.IN_SERVICE)
+                .forEach(e -> entries.save(e.withStatus(QueueStatus.DONE)));
+        goOffDutyForShop(closed);
+        return closed;
+    }
+
+    /** Barbers, and the owner too if they're actually eligible for this shop (see {@link #eligibleShopIdsForLogin}). */
+    private void goOffDutyForShop(Shop shop) {
+        users.findByShopIdAndRoleAndOnDutyTrue(shop.id(), Role.BARBER_STAFF)
+                .forEach(u -> users.save(u.onDutyOff()));
+        boolean ownerEligible = users.findByShopIdAndRole(shop.id(), Role.BARBER_STAFF).isEmpty();
+        if (ownerEligible) {
+            users.findById(shop.ownerId()).filter(User::onDuty).ifPresent(u -> users.save(u.onDutyOff()));
+        }
     }
 
     @Override
@@ -120,5 +164,73 @@ public class ShopService implements ManageShopsUseCase {
         int barbers = users.findByShopIdAndRoleAndOnDutyTrue(shopId, Role.BARBER_STAFF).size();
         boolean ownerOnDuty = users.findById(shop.ownerId()).map(User::onDuty).orElse(false);
         return barbers + (ownerOnDuty ? 1 : 0);
+    }
+
+    @Override
+    @Transactional
+    public void checkInForLogin(User user) {
+        List<String> eligibleShopIds = eligibleShopIdsForLogin(user);
+        if (eligibleShopIds.isEmpty()) {
+            return;
+        }
+        eligibleShopIds.forEach(this::openIfWithinHours);
+
+        LocalTime now = LocalTime.now();
+        boolean withinHoursSomewhere = eligibleShopIds.stream()
+                .map(this::findById)
+                .anyMatch(shop -> isWithinHours(shop, now));
+        syncOnDuty(user.id(), withinHoursSomewhere);
+    }
+
+    /** A barber's own shop; an owner's shops that have no barbers registered. Empty for anyone else. */
+    private List<String> eligibleShopIdsForLogin(User user) {
+        if (user.role() == Role.BARBER_STAFF) {
+            return user.shopId() != null ? List.of(user.shopId()) : List.of();
+        }
+        if (user.role() == Role.SHOP_OWNER) {
+            return shops.findByOwnerId(user.id()).stream()
+                    .filter(shop -> users.findByShopIdAndRole(shop.id(), Role.BARBER_STAFF).isEmpty())
+                    .map(Shop::id)
+                    .toList();
+        }
+        return List.of();
+    }
+
+    /**
+     * The actual auto-open write: no-op unless the shop is not already OPEN and is
+     * currently within hours.
+     */
+    private void openIfWithinHours(String shopId) {
+        Shop shop = findById(shopId);
+        if (shop.status() == ShopStatus.OPEN) {
+            return;
+        }
+        if (isWithinHours(shop, LocalTime.now())) {
+            shops.save(shop.opened());
+        }
+    }
+
+    /**
+     * No hours configured means "never within hours" — this is what keeps an unset-hours
+     * shop from auto-opening (see {@link #openIfWithinHours}) and its owner from getting
+     * auto-checked-in. Simple same-day window — hours spanning midnight aren't handled
+     * specially.
+     */
+    private static boolean isWithinHours(Shop shop, LocalTime now) {
+        if (shop.openingTime() == null || shop.closingTime() == null) {
+            return false;
+        }
+        return !now.isBefore(shop.openingTime()) && now.isBefore(shop.closingTime());
+    }
+
+    /**
+     * Logging in outside business hours forces the barber/owner back off duty — not just
+     * "skip turning it on" — since arriving before opening or lingering past closing
+     * shouldn't keep counting as an available chair.
+     */
+    private void syncOnDuty(String userId, boolean onDuty) {
+        users.findById(userId)
+                .filter(u -> u.onDuty() != onDuty)
+                .ifPresent(u -> users.save(onDuty ? u.onDutyOn() : u.onDutyOff()));
     }
 }
